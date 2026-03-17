@@ -60,6 +60,12 @@ install_mise_tools() {
 }
 install_mise_tools
 
+# ---------- Install eza (needs cargo from mise rust) ----------
+if ! command -v eza &>/dev/null; then
+  section "Installing eza..."
+  cargo install eza
+fi
+
 # ---------- Install npm global tools ----------
 install_npm_tools() {
   section "Installing CLI tools via npm..."

@@ -21,12 +21,6 @@ install_packages() {
     curl -sS https://starship.rs/install.sh | sh -s -- --yes
   fi
 
-  # eza (in Fedora repos since F40)
-  if ! command -v eza &>/dev/null; then
-    section "Installing eza..."
-    sudo dnf install -y eza
-  fi
-
   # lazygit (COPR)
   if ! command -v lazygit &>/dev/null; then
     section "Installing lazygit..."
