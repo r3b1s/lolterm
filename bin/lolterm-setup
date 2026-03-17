@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Interactive setup for lolterm
+# Run this after a headless install, or it runs automatically during normal install.
+
+section() {
+  echo ""
+  gum style --bold --foreground 4 "==> $1"
+}
+
+# ---------- Git configuration ----------
+section "Git Configuration"
+
+if ! git config --global user.name &>/dev/null; then
+  GIT_NAME=$(gum input --placeholder "Your Name" --prompt "Git name: " </dev/tty)
+  if [[ -n "$GIT_NAME" ]]; then
+    git config --global user.name "$GIT_NAME"
+  fi
+fi
+
+if ! git config --global user.email &>/dev/null; then
+  GIT_EMAIL=$(gum input --placeholder "you@example.com" --prompt "Git email: " </dev/tty)
+  if [[ -n "$GIT_EMAIL" ]]; then
+    git config --global user.email "$GIT_EMAIL"
+  fi
+fi
+
+git config --global init.defaultBranch main
+echo "Git configured as: $(git config --global user.name) <$(git config --global user.email)>"
+
+# ---------- GitHub authentication ----------
+section "GitHub"
+
+if ! gh auth status &>/dev/null; then
+  if gum confirm "Authenticate with GitHub?" </dev/tty; then
+    gh auth login </dev/tty
+  fi
+fi
+
+# ---------- VPN ----------
+if ! command -v tailscale &>/dev/null && ! command -v netbird &>/dev/null; then
+  section "VPN"
+
+  VPN_CHOICE=$(gum choose --header "Install a VPN?" "Tailscale" "Netbird" "Skip" </dev/tty)
+
+  case "$VPN_CHOICE" in
+    Tailscale)
+      echo "Installing Tailscale..."
+      sudo dnf install -y tailscale
+      sudo systemctl enable --now tailscaled.service
+      sudo tailscale up --ssh --accept-routes
+      ;;
+    Netbird)
+      echo "Installing Netbird..."
+      sudo tee /etc/yum.repos.d/netbird.repo <<'REPO'
+[netbird]
+name=netbird
+baseurl=https://pkgs.netbird.io/yum/
+enabled=1
+gpgcheck=0
+gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key
+repo_gpgcheck=1
+REPO
+      sudo dnf config-manager addrepo --from-repofile=/etc/yum.repos.d/netbird.repo
+      sudo dnf install -y netbird
+      netbird up
+      ;;
+    Skip)
+      echo "Skipping VPN setup."
+      ;;
+  esac
+elif command -v tailscale &>/dev/null && ! tailscale status &>/dev/null 2>&1; then
+  section "Tailscale"
+  if gum confirm "Connect to Tailscale?" </dev/tty; then
+    sudo systemctl enable --now tailscaled.service
+    sudo tailscale up --ssh --accept-routes
+  fi
+elif command -v netbird &>/dev/null && ! netbird status 2>/dev/null | grep -q "Connected"; then
+  section "Netbird"
+  if gum confirm "Connect to Netbird?" </dev/tty; then
+    netbird up
+  fi
+fi
+
+# ---------- SSH key (if not already set up) ----------
+section "SSH Access"
+
+if [ ! -f "$HOME/.ssh/authorized_keys" ] || [ ! -s "$HOME/.ssh/authorized_keys" ]; then
+  if gum confirm "Add an SSH public key for remote access?" </dev/tty; then
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    SSH_KEY=$(gum input --placeholder "ssh-ed25519 AAAAC3..." --prompt "SSH key: " </dev/tty)
+
+    if [[ -n "$SSH_KEY" ]]; then
+      echo "$SSH_KEY" >> "$HOME/.ssh/authorized_keys"
+      chmod 600 "$HOME/.ssh/authorized_keys"
+      echo "SSH key added."
+
+      if gum confirm "Disable password authentication (key-only SSH)?" </dev/tty; then
+        sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+        sudo sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+        sudo systemctl restart sshd.service
+        echo "Password auth disabled."
+      fi
+    fi
+  fi
+fi
+
+section "Setup complete!"
