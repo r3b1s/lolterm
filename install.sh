@@ -18,9 +18,10 @@ TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(eval echo "~${TARGET_USER}")
 
 # Run a command as the target user (no-op if already that user)
+# Uses env to bypass sudo's secure_path, which would strip mise shims from PATH.
 as_user() {
   if [[ $EUID -eq 0 ]]; then
-    sudo -u "$TARGET_USER" --preserve-env=PATH,HOME "$@"
+    sudo -u "$TARGET_USER" env "PATH=$PATH" "HOME=$TARGET_HOME" "$@"
   else
     "$@"
   fi
