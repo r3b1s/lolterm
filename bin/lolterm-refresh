@@ -3,4 +3,4 @@ set -euo pipefail
 
 # Re-run the lolterm installer to pick up updates
 echo "Refreshing lolterm..."
-curl -fsSL https://raw.githubusercontent.com/r3b1s/lolterm/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/r3b1s/lolterm/main/install.sh | sudo bash

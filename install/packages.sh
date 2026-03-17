@@ -38,7 +38,7 @@ install_packages() {
   # lazydocker
   if ! command -v lazydocker &>/dev/null; then
     section "Installing lazydocker..."
-    curl -fsSL https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
+    as_user bash -c "curl -fsSL https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash"
   fi
 
   # gum (Charm repo)
@@ -56,7 +56,7 @@ gpgkey=https://repo.charm.sh/yum/gpg.key' | sudo tee /etc/yum.repos.d/charm.repo
   # mise
   if ! command -v mise &>/dev/null; then
     section "Installing mise..."
-    curl -fsSL https://mise.run | sh
-    export PATH="$HOME/.local/bin:$PATH"
+    as_user bash -c "curl -fsSL https://mise.run | sh"
+    export PATH="$TARGET_HOME/.local/bin:$PATH"
   fi
 }

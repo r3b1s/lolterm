@@ -13,6 +13,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ---------- Resolve target user (handles sudo) ----------
+TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_HOME=$(eval echo "~${TARGET_USER}")
+
+# Run a command as the target user (no-op if already that user)
+as_user() {
+  if [[ $EUID -eq 0 ]]; then
+    sudo -u "$TARGET_USER" --preserve-env=PATH,HOME "$@"
+  else
+    "$@"
+  fi
+}
+
+export HOME="$TARGET_HOME"
+
 show_banner() {
   clear
   echo '
@@ -52,18 +67,19 @@ install_packages
 # ---------- Install mise runtimes ----------
 install_mise_tools() {
   section "Installing runtimes via mise..."
-  eval "$(mise activate bash)" 2>/dev/null || true
-  mise use -g node
-  mise use -g python
-  mise use -g rust
-  export PATH="$HOME/.local/share/mise/shims:$PATH"
+  eval "$("$TARGET_HOME/.local/bin/mise" activate bash)" 2>/dev/null || true
+  as_user "$TARGET_HOME/.local/bin/mise" use -g node
+  as_user "$TARGET_HOME/.local/bin/mise" use -g python
+  as_user "$TARGET_HOME/.local/bin/mise" use -g rust
+  export PATH="$TARGET_HOME/.local/share/mise/shims:$PATH"
 }
 install_mise_tools
 
 # ---------- Install eza (needs cargo from mise rust) ----------
 if ! command -v eza &>/dev/null; then
   section "Installing eza..."
-  cargo install eza
+  as_user cargo install cargo-binstall
+  as_user cargo binstall -y eza
 fi
 
 # ---------- Install npm global tools ----------
@@ -72,7 +88,7 @@ install_npm_tools() {
 
   for pkg in "@anthropic-ai/claude-code" "opencode-ai" "@openai/codex" "@google/gemini-cli" "@mariozechner/pi-coding-agent"; do
     if ! npm list -g "$pkg" &>/dev/null; then
-      npm install -g "$pkg"
+      as_user npm install -g "$pkg"
     fi
   done
 }
@@ -82,7 +98,7 @@ install_npm_tools
 install_uv() {
   if ! command -v uv &>/dev/null; then
     section "Installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    as_user bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
   fi
 }
 install_uv
@@ -91,7 +107,7 @@ install_uv
 install_rtk() {
   if ! command -v rtk &>/dev/null; then
     section "Installing rtk..."
-    curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+    as_user bash -c "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh"
   fi
 }
 install_rtk
@@ -101,34 +117,34 @@ install_dotfiles() {
   section "Installing dotfiles..."
 
   # Shell config
-  mkdir -p "$HOME/.config/shell"
-  cp -f "$INSTALLER_DIR/config/shell/aliases" "$HOME/.config/shell/aliases"
-  cp -f "$INSTALLER_DIR/config/shell/tmux_fns" "$HOME/.config/shell/tmux_fns"
+  as_user mkdir -p "$TARGET_HOME/.config/shell"
+  cp -f "$INSTALLER_DIR/config/shell/aliases" "$TARGET_HOME/.config/shell/aliases"
+  cp -f "$INSTALLER_DIR/config/shell/tmux_fns" "$TARGET_HOME/.config/shell/tmux_fns"
   echo "  Shell aliases and functions"
 
   # Tmux
-  mkdir -p "$HOME/.config/tmux"
-  cp -f "$INSTALLER_DIR/config/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
+  as_user mkdir -p "$TARGET_HOME/.config/tmux"
+  cp -f "$INSTALLER_DIR/config/tmux/tmux.conf" "$TARGET_HOME/.config/tmux/tmux.conf"
   echo "  Tmux config"
 
   # Starship
-  mkdir -p "$HOME/.config"
-  cp -f "$INSTALLER_DIR/config/starship.toml" "$HOME/.config/starship.toml"
+  as_user mkdir -p "$TARGET_HOME/.config"
+  cp -f "$INSTALLER_DIR/config/starship.toml" "$TARGET_HOME/.config/starship.toml"
   echo "  Starship prompt"
 
   # Neovim (LazyVim)
-  if [ ! -d "$HOME/.config/nvim" ]; then
-    git clone --depth 1 https://github.com/LazyVim/starter "$HOME/.config/nvim"
-    rm -rf "$HOME/.config/nvim/.git"
+  if [ ! -d "$TARGET_HOME/.config/nvim" ]; then
+    as_user git clone --depth 1 https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
+    rm -rf "$TARGET_HOME/.config/nvim/.git"
   fi
-  mkdir -p "$HOME/.config/nvim/lua/config"
-  cp -f "$INSTALLER_DIR/config/nvim/lua/config/options.lua" "$HOME/.config/nvim/lua/config/options.lua"
-  cp -f "$INSTALLER_DIR/config/nvim/lua/config/keymaps.lua" "$HOME/.config/nvim/lua/config/keymaps.lua"
+  as_user mkdir -p "$TARGET_HOME/.config/nvim/lua/config"
+  cp -f "$INSTALLER_DIR/config/nvim/lua/config/options.lua" "$TARGET_HOME/.config/nvim/lua/config/options.lua"
+  cp -f "$INSTALLER_DIR/config/nvim/lua/config/keymaps.lua" "$TARGET_HOME/.config/nvim/lua/config/keymaps.lua"
   echo "  Neovim (LazyVim)"
 
   # .bashrc additions
-  if ! grep -q "# lolterm" "$HOME/.bashrc" 2>/dev/null; then
-    cat >> "$HOME/.bashrc" <<'BASHRC'
+  if ! grep -q "# lolterm" "$TARGET_HOME/.bashrc" 2>/dev/null; then
+    cat >> "$TARGET_HOME/.bashrc" <<'BASHRC'
 
 # lolterm
 export EDITOR=nvim
@@ -163,19 +179,24 @@ install_dotfiles
 # ---------- Install bins ----------
 install_bins() {
   section "Installing helper scripts..."
-  mkdir -p "$HOME/.local/bin"
-  cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$HOME/.local/bin/lolterm-setup"
-  cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$HOME/.local/bin/lolterm-refresh"
-  chmod +x "$HOME/.local/bin/lolterm-setup" "$HOME/.local/bin/lolterm-refresh"
+  as_user mkdir -p "$TARGET_HOME/.local/bin"
+  cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
+  cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-refresh"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh"
   echo "  lolterm-setup"
   echo "  lolterm-refresh"
 }
 install_bins
 
+# ---------- Fix ownership (in case root created files via cp) ----------
+if [[ $EUID -eq 0 ]]; then
+  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local"
+fi
+
 # ---------- Docker group ----------
 setup_docker() {
-  if ! groups | grep -q docker; then
-    sudo usermod -aG docker "$USER"
+  if ! id -nG "$TARGET_USER" | grep -qw docker; then
+    sudo usermod -aG docker "$TARGET_USER"
   fi
 }
 setup_docker
@@ -184,10 +205,11 @@ setup_docker
 setup_ssh_key() {
   if [[ -n "$SSH_KEY" ]]; then
     section "Configuring SSH key..."
-    mkdir -p "$HOME/.ssh"
-    chmod 700 "$HOME/.ssh"
-    echo "$SSH_KEY" >> "$HOME/.ssh/authorized_keys"
-    chmod 600 "$HOME/.ssh/authorized_keys"
+    as_user mkdir -p "$TARGET_HOME/.ssh"
+    chmod 700 "$TARGET_HOME/.ssh"
+    echo "$SSH_KEY" >> "$TARGET_HOME/.ssh/authorized_keys"
+    chmod 600 "$TARGET_HOME/.ssh/authorized_keys"
+    chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.ssh"
 
     # Disable password auth
     sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -215,7 +237,7 @@ enable_services
 if $HEADLESS; then
   section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
 else
-  "$HOME/.local/bin/lolterm-setup"
+  as_user "$TARGET_HOME/.local/bin/lolterm-setup"
 fi
 
 # ---------- Cleanup ----------
