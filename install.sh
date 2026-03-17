@@ -140,10 +140,11 @@ install_dotfiles() {
     as_user git clone --depth 1 https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
     rm -rf "$TARGET_HOME/.config/nvim/.git"
   fi
-  as_user mkdir -p "$TARGET_HOME/.config/nvim/lua/config"
+  as_user mkdir -p "$TARGET_HOME/.config/nvim/lua/config" "$TARGET_HOME/.config/nvim/lua/plugins"
   cp -f "$INSTALLER_DIR/config/nvim/lua/config/options.lua" "$TARGET_HOME/.config/nvim/lua/config/options.lua"
   cp -f "$INSTALLER_DIR/config/nvim/lua/config/keymaps.lua" "$TARGET_HOME/.config/nvim/lua/config/keymaps.lua"
-  echo "  Neovim (LazyVim)"
+  cp -f "$INSTALLER_DIR/config/nvim/lua/plugins/colorscheme.lua" "$TARGET_HOME/.config/nvim/lua/plugins/colorscheme.lua"
+  echo "  Neovim (LazyVim + oxocarbon)"
 
   # .bashrc additions
   if ! grep -q "# lolterm" "$TARGET_HOME/.bashrc" 2>/dev/null; then
