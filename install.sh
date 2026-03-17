@@ -76,11 +76,13 @@ install_mise_tools() {
 }
 install_mise_tools
 
-# ---------- Install eza (needs cargo from mise rust) ----------
+# ---------- Install eza ----------
 if ! command -v eza &>/dev/null; then
   section "Installing eza..."
-  as_user cargo install cargo-binstall
-  as_user cargo binstall -y eza
+  EZA_VERSION=$(curl -fsSL https://api.github.com/repos/eza-community/eza/releases/latest | jq -r .tag_name | sed 's/^v//')
+  curl -fsSL "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /tmp
+  as_user install -m 755 /tmp/eza "$TARGET_HOME/.local/bin/eza"
+  rm -f /tmp/eza
 fi
 
 # ---------- Install npm global tools ----------
