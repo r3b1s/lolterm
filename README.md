@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/r3b1s/lolterm/main/install.sh | bas
   --ssh-key "ssh-ed25519 AAAAC3..."
 ```
 
-`--headless` installs everything silently and disables password auth. SSH in afterward and run `lolterm-setup` to configure git, GitHub, and Tailscale.
+`--headless` installs everything silently and disables password auth. SSH in afterward and run `lolterm-setup` to configure git, GitHub, and your choice of Tailscale or Netbird.
 
 Log out and back in when it's done.
 
