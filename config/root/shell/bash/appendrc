@@ -1,0 +1,150 @@
+
+# ----- lolterm root shell config -----
+
+# If not running interactively, don't do anything.
+[[ $- != *i* ]] && return
+
+#### Aliases & Functions
+
+# File system
+if command -v eza &> /dev/null; then
+  alias ls='eza -lh --group-directories-first --icons=auto'
+  alias lsa='ls -a'
+  alias lt='eza --tree --level=2 --long --icons --git'
+  alias lta='lt -a'
+fi
+
+if command -v zoxide &> /dev/null; then
+  alias cd="zd"
+  zd() {
+    if (( $# == 0 )); then
+      builtin cd ~ || return
+    elif [[ -d $1 ]]; then
+      builtin cd "$1" || return
+    else
+      if ! z "$@"; then
+        echo "Error: Directory not found"
+        return 1
+      fi
+
+      printf "\U000F17A9 "
+      pwd
+    fi
+  }
+fi
+
+open() (
+  xdg-open "$@" >/dev/null 2>&1 &
+)
+
+# Compression
+compress() { tar -czf "${1%/}.tar.gz" "${1%/}"; }
+alias decompress="tar -xzf"
+
+# Directories
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# Wipe & Shred History
+alias wipehist='history -c && shred -u ~/.bash_history'
+
+# Tools
+n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
+
+# SSH Port Forwarding Functions
+fip() {
+  (( $# < 2 )) && echo "Usage: fip <host> <port1> [port2] ..." && return 1
+  local host="$1"
+  shift
+  for port in "$@"; do
+    ssh -f -N -L "$port:localhost:$port" "$host" && echo "Forwarding localhost:$port -> $host:$port"
+  done
+}
+
+dip() {
+  (( $# == 0 )) && echo "Usage: dip <port1> [port2] ..." && return 1
+  for port in "$@"; do
+    pkill -f "ssh.*-L $port:localhost:$port" && echo "Stopped forwarding port $port" || echo "No forwarding on port $port"
+  done
+}
+
+lip() {
+  pgrep -af "ssh.*-L [0-9]+:localhost:[0-9]+" || echo "No active forwards"
+}
+
+##############################
+####     bash settings    ####
+##############################
+
+set -o vi
+
+##############################
+####   Environment Vars   ####
+##############################
+
+export EDITOR="nvim"
+export VISUAL="nvim"
+export SUDO_EDITOR="$EDITOR"
+export BAT_THEME=ansi
+
+export GEMINI_TELEMETRY_ENABLED=false
+export RTK_TELEMETRY_DISABLED=1
+export POWERSHELL_TELEMETRY_OPTOUT=1
+export NPM_CONFIG_FUND=false
+export NPM_CONFIG_AUDIT=false
+export NPM_CONFIG_UPDATE_NOTIFIER=false
+export HOMEBREW_NO_ANALYTICS=1
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export DISABLE_TELEMETRY=1
+export DO_NOT_TRACK=1
+export AZURE_CORE_COLLECT_TELEMETRY=0
+export CHECKPOINT_DISABLE=1
+export GH_NO_TELEMETRY=1
+export SAM_CLI_TELEMETRY=0
+export WRANGLER_SEND_METRICS=false
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_UPGRADEASSISTANT_TELEMETRY_OPTOUT=1
+export ASTRO_TELEMETRY_DISABLED=1
+export NG_CLI_ANALYTICS=false
+export EXPO_NO_TELEMETRY=1
+export GATSBY_TELEMETRY_DISABLED=1
+export NEXT_TELEMETRY_DISABLED=1
+export NUXT_TELEMETRY_DISABLED=1
+export REDWOOD_TELEMETRY_DISABLED=1
+export SLS_TELEMETRY_DISABLED=1
+export STORYBOOK_DISABLE_TELEMETRY=1
+export STORYBOOK_ENABLE_CRASH_REPORTS=0
+export TURBO_TELEMETRY_DISABLED=1
+export PULUMI_SKIP_UPDATE_CHECK=true
+export PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION=true
+export ALGOLIA_CLI_TELEMETRY=0
+
+# starship
+if [[ ${TERM:-} != "dumb" ]] && command -v starship &> /dev/null; then
+  eval "$(starship init bash)"
+fi
+
+# zoxide
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init bash)"
+fi
+
+# fzf
+if command -v fzf &> /dev/null; then
+  if [[ -f /usr/share/fzf/completion.bash ]]; then
+    source /usr/share/fzf/completion.bash
+  fi
+  if [[ -f /usr/share/fzf/key-bindings.bash ]]; then
+    source /usr/share/fzf/key-bindings.bash
+  fi
+fi
+
+# Autocompletion
+if [[ ! -v BASH_COMPLETION_VERSINFO && -f /usr/share/bash-completion/bash_completion ]]; then
+  source /usr/share/bash-completion/bash_completion
+fi
+
+[[ -f /root/.inputrc ]] && bind -f /root/.inputrc
+
+# ----- /lolterm root shell config -----

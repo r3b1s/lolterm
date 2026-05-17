@@ -2,13 +2,38 @@
 set -euo pipefail
 
 HEADLESS=false
+ROOT_CONFIG=false
+TMUX_AUTOSTART=false
 SSH_KEY=""
+
+usage() {
+  cat <<'USAGE'
+Usage: install.sh [options]
+
+Options:
+  --headless         Skip interactive post-install setup
+  --root-config      Install user configs plus optional root configs
+  --tmux-autostart   Auto-start tmux for interactive user shells
+  --ssh-key KEY      Add an SSH public key and disable password auth
+  --help             Show this help
+USAGE
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --headless) HEADLESS=true; shift ;;
-    --ssh-key)  SSH_KEY="$2"; shift 2 ;;
+    --root-config) ROOT_CONFIG=true; shift ;;
+    --tmux-autostart) TMUX_AUTOSTART=true; shift ;;
+    --ssh-key)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --ssh-key" >&2
+        exit 1
+      fi
+      SSH_KEY="$2"
+      shift 2
+      ;;
+    --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -28,9 +53,12 @@ as_user() {
 }
 
 export HOME="$TARGET_HOME"
+export PATH="$TARGET_HOME/.local/bin:$TARGET_HOME/.cargo/bin:$TARGET_HOME/.local/share/mise/shims:$PATH"
 
 show_banner() {
-  clear
+  if [[ -t 1 && ${TERM:-} != "dumb" ]]; then
+    clear || true
+  fi
   echo '
   ██╗      ██████╗ ██╗  ████████╗███████╗██████╗ ███╗   ███╗
   ██║     ██╔═══██╗██║  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║
@@ -68,49 +96,38 @@ install_packages
 # ---------- Install mise runtimes ----------
 install_mise_tools() {
   section "Installing runtimes via mise..."
-  eval "$("$TARGET_HOME/.local/bin/mise" activate bash)" 2>/dev/null || true
-  as_user "$TARGET_HOME/.local/bin/mise" use -g node
-  as_user "$TARGET_HOME/.local/bin/mise" use -g python
-  as_user "$TARGET_HOME/.local/bin/mise" use -g rust
+  eval "$(mise activate bash)" 2>/dev/null || true
+  as_user mise use -g node
+  as_user mise use -g python
   export PATH="$TARGET_HOME/.local/share/mise/shims:$PATH"
 }
 install_mise_tools
-
-# ---------- Install eza ----------
-if ! command -v eza &>/dev/null; then
-  section "Installing eza..."
-  EZA_VERSION=$(curl -fsSL https://api.github.com/repos/eza-community/eza/releases/latest | jq -r .tag_name | sed 's/^v//')
-  curl -fsSL "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /tmp
-  as_user install -m 755 /tmp/eza "$TARGET_HOME/.local/bin/eza"
-  rm -f /tmp/eza
-fi
-
-# ---------- Install npm global tools ----------
-install_npm_tools() {
-  section "Installing CLI tools via npm..."
-
-  for pkg in "@anthropic-ai/claude-code" "opencode-ai" "@openai/codex" "@google/gemini-cli" "@mariozechner/pi-coding-agent"; do
-    if ! npm list -g "$pkg" &>/dev/null; then
-      as_user npm install -g "$pkg"
-    fi
-  done
-}
-install_npm_tools
-
-# ---------- Install uv for Python ----------
-install_uv() {
-  if ! command -v uv &>/dev/null; then
-    section "Installing uv..."
-    as_user bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
-  fi
-}
-install_uv
 
 # ---------- Install rtk ----------
 install_rtk() {
   if ! command -v rtk &>/dev/null; then
     section "Installing rtk..."
-    as_user bash -c "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh"
+
+    local arch rpm_name release_json version download_base tmpdir
+    arch="$(uname -m)"
+    tmpdir="$(mktemp -d)"
+    trap 'rm -rf "$tmpdir"' RETURN
+
+    if [[ "$arch" != "x86_64" ]]; then
+      echo "rtk release RPM installation is currently supported only on x86_64." >&2
+      echo "Skipping rtk because no verified Fedora RPM path is defined for $arch." >&2
+      return 0
+    fi
+
+    release_json="$(curl -fsSL https://api.github.com/repos/rtk-ai/rtk/releases/latest)"
+    version="$(jq -r '.tag_name | sub("^v"; "")' <<<"$release_json")"
+    rpm_name="rtk-${version}-1.x86_64.rpm"
+    download_base="https://github.com/rtk-ai/rtk/releases/download/v${version}"
+
+    curl -fsSLo "$tmpdir/$rpm_name" "$download_base/$rpm_name"
+    curl -fsSLo "$tmpdir/checksums.txt" "$download_base/checksums.txt"
+    (cd "$tmpdir" && grep -E "[[:space:]]+$rpm_name$" checksums.txt | sha256sum -c -)
+    sudo dnf install -y "$tmpdir/$rpm_name"
   fi
 }
 install_rtk
@@ -147,38 +164,73 @@ install_dotfiles() {
   echo "  Neovim (LazyVim + oxocarbon)"
 
   # .bashrc additions
-  if ! grep -q "# lolterm" "$TARGET_HOME/.bashrc" 2>/dev/null; then
+  if ! grep -qF "# ----- lolterm shell config -----" "$TARGET_HOME/.bashrc" 2>/dev/null; then
     cat >> "$TARGET_HOME/.bashrc" <<'BASHRC'
 
-# lolterm
+# ----- lolterm shell config -----
 export EDITOR=nvim
-export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.local/share/mise/shims:$PATH"
 
-# Source shell config
-[ -f "$HOME/.config/shell/aliases" ] && source "$HOME/.config/shell/aliases"
-[ -f "$HOME/.config/shell/tmux_fns" ] && source "$HOME/.config/shell/tmux_fns"
+if [[ $- == *i* ]]; then
+  # Source shell config
+  [ -f "$HOME/.config/shell/aliases" ] && source "$HOME/.config/shell/aliases"
+  [ -f "$HOME/.config/shell/tmux_fns" ] && source "$HOME/.config/shell/tmux_fns"
 
-# Starship prompt
-eval "$(starship init bash)"
+  # Starship prompt
+  command -v starship &>/dev/null && eval "$(starship init bash)"
 
-# Zoxide
-eval "$(zoxide init bash)"
+  # Zoxide
+  command -v zoxide &>/dev/null && eval "$(zoxide init bash)"
 
-# Direnv
-eval "$(direnv hook bash)"
+  # Direnv
+  command -v direnv &>/dev/null && eval "$(direnv hook bash)"
 
-# Mise
-eval "$(mise activate bash)"
-
-# Auto-start tmux
-if [[ -z ${TMUX:-} ]]; then
-  t
+  # Mise
+  command -v mise &>/dev/null && eval "$(mise activate bash)"
 fi
+# ----- /lolterm shell config -----
 BASHRC
     echo "  .bashrc"
   fi
 }
 install_dotfiles
+
+install_root_dotfiles() {
+  $ROOT_CONFIG || return 0
+
+  section "Installing root dotfiles..."
+
+  sudo install -d -m 755 /root/.config
+  sudo install -m 644 "$INSTALLER_DIR/config/root/starship.toml" /root/.config/starship.toml
+  sudo install -m 644 "$INSTALLER_DIR/config/root/shell/bash/inputrc" /root/.inputrc
+
+  local root_stamp="# ----- lolterm root shell config -----"
+  if ! sudo grep -qF "$root_stamp" /root/.bashrc 2>/dev/null; then
+    sudo tee -a /root/.bashrc < "$INSTALLER_DIR/config/root/shell/bash/appendrc" >/dev/null
+  fi
+
+  sudo chown root:root /root/.config/starship.toml /root/.inputrc /root/.bashrc
+  echo "  Root shell, readline, and Starship config"
+}
+install_root_dotfiles
+
+install_tmux_autostart() {
+  $TMUX_AUTOSTART || return 0
+
+  local stamp="# ----- lolterm tmux autostart -----"
+  if ! grep -qF "$stamp" "$TARGET_HOME/.bashrc" 2>/dev/null; then
+    cat >> "$TARGET_HOME/.bashrc" <<'BASHRC'
+
+# ----- lolterm tmux autostart -----
+if [[ $- == *i* ]] && [[ -t 1 ]] && [[ -z ${TMUX:-} ]] && command -v tmux &>/dev/null; then
+  tmux attach || tmux new
+fi
+# ----- /lolterm tmux autostart -----
+BASHRC
+    echo "  tmux autostart"
+  fi
+}
+install_tmux_autostart
 
 # ---------- Install bins ----------
 install_bins() {
@@ -186,24 +238,18 @@ install_bins() {
   as_user mkdir -p "$TARGET_HOME/.local/bin"
   cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
   cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-refresh"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh"
+  cp -f "$INSTALLER_DIR/bin/lolterm-update-tools" "$TARGET_HOME/.local/bin/lolterm-update-tools"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-update-tools"
   echo "  lolterm-setup"
   echo "  lolterm-refresh"
+  echo "  lolterm-update-tools"
 }
 install_bins
 
 # ---------- Fix ownership (in case root created files via cp) ----------
 if [[ $EUID -eq 0 ]]; then
-  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local"
+  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.bashrc"
 fi
-
-# ---------- Docker group ----------
-setup_docker() {
-  if ! id -nG "$TARGET_USER" | grep -qw docker; then
-    sudo usermod -aG docker "$TARGET_USER"
-  fi
-}
-setup_docker
 
 # ---------- SSH key setup ----------
 setup_ssh_key() {
@@ -211,7 +257,10 @@ setup_ssh_key() {
     section "Configuring SSH key..."
     as_user mkdir -p "$TARGET_HOME/.ssh"
     chmod 700 "$TARGET_HOME/.ssh"
-    echo "$SSH_KEY" >> "$TARGET_HOME/.ssh/authorized_keys"
+    touch "$TARGET_HOME/.ssh/authorized_keys"
+    if ! grep -qxF "$SSH_KEY" "$TARGET_HOME/.ssh/authorized_keys"; then
+      echo "$SSH_KEY" >> "$TARGET_HOME/.ssh/authorized_keys"
+    fi
     chmod 600 "$TARGET_HOME/.ssh/authorized_keys"
     chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.ssh"
 
@@ -227,10 +276,6 @@ setup_ssh_key
 # ---------- Enable services ----------
 enable_services() {
   section "Enabling services..."
-
-  sudo systemctl enable docker.service
-  sudo systemctl start --no-block docker.service
-  echo "  Docker"
 
   sudo systemctl enable --now sshd.service
   echo "  SSH"

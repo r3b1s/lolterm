@@ -29,14 +29,6 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 
 # Tools
-alias c='opencode'
-alias cx='printf "\033[2J\033[3J\033[H" && claude --dangerously-skip-permissions'
-alias cdx='codex --full-auto'
-alias cdxx='codex --dangerously-bypass-approvals-and-sandbox'
-alias gx='gemini --yolo'
-alias d='docker'
-alias lzd='lazydocker'
-alias lzg='lazygit'
 alias t='tmux attach || tmux new'
 n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
 

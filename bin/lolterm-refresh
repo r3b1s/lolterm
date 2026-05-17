@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Re-run the lolterm installer to pick up updates
+REPO="https://github.com/r3b1s/lolterm.git"
+INSTALLER_DIR="$(mktemp -d)"
+trap 'rm -rf "$INSTALLER_DIR"' EXIT
+
 echo "Refreshing lolterm..."
-curl -fsSL https://raw.githubusercontent.com/r3b1s/lolterm/main/install.sh | sudo bash
+git clone --depth 1 "$REPO" "$INSTALLER_DIR"
+sudo bash "$INSTALLER_DIR/install.sh" "$@"
