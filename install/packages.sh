@@ -15,10 +15,11 @@ install_packages() {
     gh \
     bat eza gum rust cargo
 
-  # Starship prompt, installed from the upstream Rust crate.
-  if [[ ! -x /usr/local/bin/starship ]]; then
+  # Starship prompt, installed from the atim/starship COPR.
+  if ! rpm -q starship &>/dev/null; then
     section "Installing starship..."
-    sudo cargo install starship --locked --root /usr/local
+    sudo dnf copr enable -y atim/starship
+    sudo dnf install -y starship
   fi
 
   # mise: upstream maintainer-owned COPR documented by mise for Fedora/RHEL.

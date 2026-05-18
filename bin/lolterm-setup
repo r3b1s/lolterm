@@ -62,7 +62,6 @@ gpgcheck=1
 gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key
 repo_gpgcheck=1
 REPO
-      sudo dnf config-manager addrepo --from-repofile=/etc/yum.repos.d/netbird.repo
       sudo dnf install -y netbird
       netbird up
       ;;

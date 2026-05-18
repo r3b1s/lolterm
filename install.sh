@@ -53,7 +53,7 @@ as_user() {
 }
 
 export HOME="$TARGET_HOME"
-export PATH="$TARGET_HOME/.local/bin:$TARGET_HOME/.cargo/bin:$TARGET_HOME/.local/share/mise/shims:$PATH"
+export PATH="$TARGET_HOME/.local/bin:$TARGET_HOME/.local/share/mise/shims:$PATH"
 
 show_banner() {
   if [[ -t 1 && ${TERM:-} != "dumb" ]]; then
@@ -111,11 +111,11 @@ install_rtk() {
     local arch rpm_name release_json version download_base tmpdir
     arch="$(uname -m)"
     tmpdir="$(mktemp -d)"
-    trap 'rm -rf "$tmpdir"' RETURN
 
     if [[ "$arch" != "x86_64" ]]; then
       echo "rtk release RPM installation is currently supported only on x86_64." >&2
       echo "Skipping rtk because no verified Fedora RPM path is defined for $arch." >&2
+      rm -rf "$tmpdir"
       return 0
     fi
 
@@ -128,6 +128,7 @@ install_rtk() {
     curl -fsSLo "$tmpdir/checksums.txt" "$download_base/checksums.txt"
     (cd "$tmpdir" && grep -E "[[:space:]]+$rpm_name$" checksums.txt | sha256sum -c -)
     sudo dnf install -y "$tmpdir/$rpm_name"
+    rm -rf "$tmpdir"
   fi
 }
 install_rtk
@@ -169,7 +170,7 @@ install_dotfiles() {
 
 # ----- lolterm shell config -----
 export EDITOR=nvim
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.local/share/mise/shims:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
 
 if [[ $- == *i* ]]; then
   # Source shell config
@@ -248,7 +249,9 @@ install_bins
 
 # ---------- Fix ownership (in case root created files via cp) ----------
 if [[ $EUID -eq 0 ]]; then
-  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.bashrc"
+  for path in "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.bashrc"; do
+    [[ -e $path ]] && chown -R "$TARGET_USER:$TARGET_USER" "$path"
+  done
 fi
 
 # ---------- SSH key setup ----------

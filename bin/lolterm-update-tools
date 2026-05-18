@@ -1,22 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-update_starship() {
-  echo "Updating starship..."
-  sudo cargo install starship --locked --root /usr/local --force
-}
-
 update_rtk() {
   echo "Updating rtk..."
 
   local arch rpm_name release_json version download_base tmpdir
   arch="$(uname -m)"
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
 
   if [[ "$arch" != "x86_64" ]]; then
     echo "rtk release RPM updates are currently supported only on x86_64." >&2
     echo "Skipping rtk because no verified Fedora RPM path is defined for $arch." >&2
+    rm -rf "$tmpdir"
     return 0
   fi
 
@@ -29,9 +24,9 @@ update_rtk() {
   curl -fsSLo "$tmpdir/checksums.txt" "$download_base/checksums.txt"
   (cd "$tmpdir" && grep -E "[[:space:]]+$rpm_name$" checksums.txt | sha256sum -c -)
   sudo dnf install -y "$tmpdir/$rpm_name"
+  rm -rf "$tmpdir"
 }
 
-update_starship
 update_rtk
 
 echo "lolterm-managed non-DNF tools updated."
