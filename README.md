@@ -6,6 +6,7 @@ Fedora 44 development environment installer for fresh cloud or workstation syste
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/r3b1s/lolterm/main/install.sh
+chmod +x install.sh
 bash install.sh
 ```
 
@@ -13,6 +14,7 @@ For cloud/VM provisioning where there is no TTY:
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/r3b1s/lolterm/main/install.sh
+chmod +x install.sh
 bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..."
 ```
 
