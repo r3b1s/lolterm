@@ -9,6 +9,110 @@ section() {
   gum style --bold --foreground 4 "==> $1"
 }
 
+warn_vpn_access() {
+  local vpn="$1"
+  gum style --bold --foreground 3 "Access control warning"
+  echo "$vpn authentication can grant this endpoint broad peer access if your VPN ACLs, groups, tags, or setup-key policies are not restricted."
+  echo "Use a scoped setup/auth key for servers whenever possible."
+  echo ""
+}
+
+install_netbird() {
+  if ! command -v netbird &>/dev/null; then
+    echo "Installing NetBird..."
+    local key_url key_file
+    key_url="https://pkgs.netbird.io/yum/repodata/repomd.xml.key"
+    key_file="$(mktemp)"
+    curl -fsSLo "$key_file" "$key_url"
+    sudo rpm --import "$key_file"
+    rm -f "$key_file"
+
+    sudo tee /etc/yum.repos.d/netbird.repo <<'REPO' >/dev/null
+[netbird]
+name=netbird
+baseurl=https://pkgs.netbird.io/yum/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key
+repo_gpgcheck=1
+REPO
+    sudo dnf install -y netbird
+  fi
+}
+
+netbird_up() {
+  local setup_key="${1:-}"
+  local -a args=(
+    --enable-rosenpass
+    --rosenpass-permissive
+    --wireguard-port 51821
+    --enable-ssh-local-port-forwarding
+    --enable-ssh-remote-port-forwarding
+    --enable-ssh-root
+    --enable-ssh-sftp
+  )
+
+  if [[ -n "$setup_key" ]]; then
+    args=(--setup-key "$setup_key" "${args[@]}")
+  else
+    args=(--no-browser "${args[@]}")
+  fi
+
+  netbird up "${args[@]}"
+}
+
+setup_netbird() {
+  install_netbird
+  warn_vpn_access "NetBird"
+
+  local auth_choice setup_key
+  auth_choice=$(gum choose --header "Authenticate NetBird" "Browser link" "Setup key" "Manual later" </dev/tty)
+
+  case "$auth_choice" in
+    "Browser link")
+      netbird_up ""
+      ;;
+    "Setup key")
+      setup_key=$(gum input --password --placeholder "NetBird setup key" --prompt "Setup key: " </dev/tty)
+      if [[ -n "$setup_key" ]]; then
+        netbird_up "$setup_key"
+      else
+        echo "No setup key provided. Skipping NetBird authentication."
+      fi
+      ;;
+    "Manual later")
+      echo "Skipping NetBird authentication. Run 'netbird up' later."
+      ;;
+  esac
+}
+
+setup_tailscale() {
+  echo "Installing Tailscale..."
+  sudo dnf install -y tailscale
+  sudo systemctl enable --now tailscaled.service
+  warn_vpn_access "Tailscale"
+
+  local auth_choice auth_key
+  auth_choice=$(gum choose --header "Authenticate Tailscale" "Browser link" "Auth key" "Manual later" </dev/tty)
+
+  case "$auth_choice" in
+    "Browser link")
+      sudo tailscale up --ssh --accept-routes
+      ;;
+    "Auth key")
+      auth_key=$(gum input --password --placeholder "Tailscale auth key" --prompt "Auth key: " </dev/tty)
+      if [[ -n "$auth_key" ]]; then
+        sudo tailscale up --ssh --accept-routes --auth-key "$auth_key"
+      else
+        echo "No auth key provided. Skipping Tailscale authentication."
+      fi
+      ;;
+    "Manual later")
+      echo "Skipping Tailscale authentication. Run 'sudo tailscale up' later."
+      ;;
+  esac
+}
+
 # ---------- Git configuration ----------
 section "Git Configuration"
 
@@ -39,51 +143,45 @@ if ! gh auth status &>/dev/null; then
 fi
 
 # ---------- VPN ----------
-if ! command -v tailscale &>/dev/null && ! command -v netbird &>/dev/null; then
-  section "VPN"
+tailscale_needs_setup=false
+netbird_needs_setup=false
 
-  VPN_CHOICE=$(gum choose --header "Install a VPN?" "Tailscale" "Netbird" "Skip" </dev/tty)
+if ! command -v tailscale &>/dev/null || ! tailscale status &>/dev/null 2>&1; then
+  tailscale_needs_setup=true
+fi
+
+if ! command -v netbird &>/dev/null || ! netbird status 2>/dev/null | grep -q "Connected"; then
+  netbird_needs_setup=true
+fi
+
+if $tailscale_needs_setup && $netbird_needs_setup; then
+  section "VPN"
+  VPN_CHOICE=$(gum choose --header "Install VPN?" "Tailscale" "NetBird" "Both" "Skip" </dev/tty)
 
   case "$VPN_CHOICE" in
     Tailscale)
-      echo "Installing Tailscale..."
-      sudo dnf install -y tailscale
-      sudo systemctl enable --now tailscaled.service
-      sudo tailscale up --ssh --accept-routes
+      setup_tailscale
       ;;
-    Netbird)
-      echo "Installing Netbird..."
-      NETBIRD_KEY_URL="https://pkgs.netbird.io/yum/repodata/repomd.xml.key"
-      NETBIRD_KEY_FILE="$(mktemp)"
-      curl -fsSLo "$NETBIRD_KEY_FILE" "$NETBIRD_KEY_URL"
-      sudo rpm --import "$NETBIRD_KEY_FILE"
-      rm -f "$NETBIRD_KEY_FILE"
-      sudo tee /etc/yum.repos.d/netbird.repo <<'REPO'
-[netbird]
-name=netbird
-baseurl=https://pkgs.netbird.io/yum/
-enabled=1
-gpgcheck=1
-gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key
-repo_gpgcheck=1
-REPO
-      sudo dnf install -y netbird
-      netbird up
+    NetBird)
+      setup_netbird
+      ;;
+    Both)
+      setup_tailscale
+      setup_netbird
       ;;
     Skip)
       echo "Skipping VPN setup."
       ;;
   esac
-elif command -v tailscale &>/dev/null && ! tailscale status &>/dev/null 2>&1; then
+elif $tailscale_needs_setup; then
   section "Tailscale"
-  if gum confirm "Connect to Tailscale?" </dev/tty; then
-    sudo systemctl enable --now tailscaled.service
-    sudo tailscale up --ssh --accept-routes
+  if gum confirm "Set up Tailscale?" </dev/tty; then
+    setup_tailscale
   fi
-elif command -v netbird &>/dev/null && ! netbird status 2>/dev/null | grep -q "Connected"; then
-  section "Netbird"
-  if gum confirm "Connect to Netbird?" </dev/tty; then
-    netbird up
+elif $netbird_needs_setup; then
+  section "NetBird"
+  if gum confirm "Set up NetBird?" </dev/tty; then
+    setup_netbird
   fi
 fi
 

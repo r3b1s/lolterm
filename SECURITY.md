@@ -28,9 +28,11 @@ Every package source change must be documented in `README.md` and this file.
 
 LazyVim is installed by cloning the official LazyVim starter repository. Trust basis: upstream documented starter repository. Updates are handled by Neovim/LazyVim plugin tooling after installation.
 
-Netbird is optional and installed from the official Netbird RPM repository when selected in `lolterm-setup`. The repo uses GPG and repo metadata checks.
+Netbird is optional and installed from the official Netbird RPM repository when selected in `lolterm-setup` or provisioned with `--netbird-setup-key` in headless mode. The repo uses GPG and repo metadata checks.
 
-Tailscale is optional and installed through DNF when selected in `lolterm-setup`.
+Tailscale is optional and installed through DNF when selected in `lolterm-setup` or provisioned with `--tailscale-auth-key` in headless mode.
+
+VPN enrollment keys and browser-link authentication can grant broad network access. Use scoped NetBird setup keys, Tailscale tagged auth keys, and restrictive ACLs/groups/policies for server endpoints.
 
 ## Removed Or Deferred Sources
 

@@ -18,6 +18,13 @@ chmod +x install.sh
 bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..."
 ```
 
+Headless VPN provisioning can be added with one or both VPN keys:
+
+```bash
+bash install.sh --headless --netbird-setup-key "nb_setup_key..."
+bash install.sh --headless --tailscale-auth-key "tskey-auth-..."
+```
+
 Log out and back in when installation completes.
 
 ## Installer Flags
@@ -25,6 +32,10 @@ Log out and back in when installation completes.
 `--headless`: Skip interactive post-install setup.
 
 `--ssh-key KEY`: Add an SSH public key and disable password auth.
+
+`--netbird-setup-key KEY`: Provision NetBird non-interactively in headless mode.
+
+`--tailscale-auth-key KEY`: Provision Tailscale non-interactively in headless mode.
 
 `--root-config`: Install normal user configs plus optional root Starship, Bash, and readline configs.
 
@@ -42,7 +53,7 @@ Log out and back in when installation completes.
 
 **Git**: git and GitHub CLI.
 
-**Networking**: SSH server and optional Tailscale or Netbird setup during `lolterm-setup`.
+**Networking**: SSH server and optional Tailscale or NetBird setup during `lolterm-setup` or headless provisioning.
 
 ## Package List
 
@@ -198,7 +209,11 @@ Pass `--headless` and `--ssh-key` when there is no interactive terminal availabl
 
 Headless mode installs non-interactively, adds the SSH key to `~/.ssh/authorized_keys`, disables password auth, enables SSH, and installs `lolterm-setup` into `~/.local/bin/`.
 
-After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, and optional additional SSH keys using Gum prompts.
+Add `--netbird-setup-key`, `--tailscale-auth-key`, or both to provision VPNs during headless installation.
+
+After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, and optional additional SSH keys using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
+
+Review NetBird and Tailscale access controls before authenticating a server. Browser-link login usually enrolls the endpoint under the current user and may grant broad peer access if ACLs, groups, tags, or setup-key policies are not restricted.
 
 ## Files
 

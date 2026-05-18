@@ -5,6 +5,8 @@ HEADLESS=false
 ROOT_CONFIG=false
 TMUX_AUTOSTART=false
 SSH_KEY=""
+NETBIRD_SETUP_KEY=""
+TAILSCALE_AUTH_KEY=""
 
 usage() {
   cat <<'USAGE'
@@ -15,6 +17,10 @@ Options:
   --root-config      Install user configs plus optional root configs
   --tmux-autostart   Auto-start tmux for interactive user shells
   --ssh-key KEY      Add an SSH public key and disable password auth
+  --netbird-setup-key KEY
+                     Provision NetBird non-interactively
+  --tailscale-auth-key KEY
+                     Provision Tailscale non-interactively
   --help             Show this help
 USAGE
 }
@@ -33,10 +39,31 @@ while [[ $# -gt 0 ]]; do
       SSH_KEY="$2"
       shift 2
       ;;
+    --netbird-setup-key)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --netbird-setup-key" >&2
+        exit 1
+      fi
+      NETBIRD_SETUP_KEY="$2"
+      shift 2
+      ;;
+    --tailscale-auth-key)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --tailscale-auth-key" >&2
+        exit 1
+      fi
+      TAILSCALE_AUTH_KEY="$2"
+      shift 2
+      ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+if ! $HEADLESS && { [[ -n "$NETBIRD_SETUP_KEY" ]] || [[ -n "$TAILSCALE_AUTH_KEY" ]]; }; then
+  echo "VPN provisioning keys require --headless." >&2
+  exit 1
+fi
 
 # ---------- Resolve target user (handles sudo) ----------
 TARGET_USER="${SUDO_USER:-$USER}"
@@ -275,6 +302,74 @@ setup_ssh_key() {
   fi
 }
 setup_ssh_key
+
+# ---------- Optional headless VPN provisioning ----------
+warn_vpn_access() {
+  local vpn="$1"
+  echo "WARNING: $vpn authentication can grant this endpoint broad peer access if ACLs, groups, tags, or setup-key policies are not restricted." >&2
+  echo "Use scoped setup/auth keys for server endpoints whenever possible." >&2
+}
+
+install_netbird() {
+  if ! command -v netbird &>/dev/null; then
+    section "Installing NetBird..."
+    local key_url key_file
+    key_url="https://pkgs.netbird.io/yum/repodata/repomd.xml.key"
+    key_file="$(mktemp)"
+    curl -fsSLo "$key_file" "$key_url"
+    sudo rpm --import "$key_file"
+    rm -f "$key_file"
+
+    sudo tee /etc/yum.repos.d/netbird.repo <<'REPO' >/dev/null
+[netbird]
+name=netbird
+baseurl=https://pkgs.netbird.io/yum/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key
+repo_gpgcheck=1
+REPO
+    sudo dnf install -y netbird
+  fi
+}
+
+netbird_up() {
+  local -a args=(
+    --enable-rosenpass
+    --rosenpass-permissive
+    --wireguard-port 51821
+    --enable-ssh-local-port-forwarding
+    --enable-ssh-remote-port-forwarding
+    --enable-ssh-root
+    --enable-ssh-sftp
+  )
+
+  if [[ -n "$1" ]]; then
+    args=(--setup-key "$1" "${args[@]}")
+  else
+    args=(--no-browser "${args[@]}")
+  fi
+
+  as_user netbird up "${args[@]}"
+}
+
+setup_headless_vpn() {
+  if [[ -n "$NETBIRD_SETUP_KEY" ]]; then
+    install_netbird
+    section "Provisioning NetBird..."
+    warn_vpn_access "NetBird"
+    netbird_up "$NETBIRD_SETUP_KEY"
+  fi
+
+  if [[ -n "$TAILSCALE_AUTH_KEY" ]]; then
+    section "Provisioning Tailscale..."
+    warn_vpn_access "Tailscale"
+    sudo dnf install -y tailscale
+    sudo systemctl enable --now tailscaled.service
+    sudo tailscale up --ssh --accept-routes --auth-key "$TAILSCALE_AUTH_KEY"
+  fi
+}
+setup_headless_vpn
 
 # ---------- Enable services ----------
 enable_services() {
