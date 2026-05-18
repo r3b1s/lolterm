@@ -14,6 +14,6 @@ Download remote release artifacts to a temporary directory and verify checksums 
 
 `lolterm-refresh` reruns the installer by cloning the repository and executing the checked-out installer locally.
 
-`lolterm-update-tools` updates lolterm-managed non-DNF tools such as Starship and RTK.
+`lolterm-update-tools` updates lolterm-managed non-DNF tools such as RTK.
 
 If a helper adds or removes managed tools, update `README.md` and `SECURITY.md` in the same change.

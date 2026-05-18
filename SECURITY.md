@@ -18,7 +18,7 @@ Every package source change must be documented in `README.md` and this file.
 
 ## Current Non-DNF Sources
 
-`starship` is installed with `cargo install starship --locked --root /usr/local`. Trust basis: upstream Rust crate published by Starship maintainers. Update command: `lolterm-update-tools`.
+`starship` is installed from the `atim/starship` COPR. Trust basis: Fedora COPR maintained by project owners/maintainers. Update command: `sudo dnf upgrade starship`.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update-tools`.
 

@@ -95,7 +95,7 @@ Fedora DNF packages are preferred whenever available.
 
 `mise` is installed through the upstream-maintainer COPR documented by mise for Fedora/RHEL.
 
-`starship` is installed from the upstream Rust crate with `cargo install starship --locked`.
+`starship` is installed from the `atim/starship` COPR.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM after SHA-256 verification.
 
@@ -113,7 +113,7 @@ Refresh the lolterm installer and configs:
 lolterm-refresh
 ```
 
-Update lolterm-managed non-DNF tools:
+Update lolterm-managed non-DNF tools (currently RTK):
 
 ```bash
 lolterm-update-tools
