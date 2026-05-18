@@ -53,6 +53,11 @@ if ! command -v tailscale &>/dev/null && ! command -v netbird &>/dev/null; then
       ;;
     Netbird)
       echo "Installing Netbird..."
+      NETBIRD_KEY_URL="https://pkgs.netbird.io/yum/repodata/repomd.xml.key"
+      NETBIRD_KEY_FILE="$(mktemp)"
+      curl -fsSLo "$NETBIRD_KEY_FILE" "$NETBIRD_KEY_URL"
+      sudo rpm --import "$NETBIRD_KEY_FILE"
+      rm -f "$NETBIRD_KEY_FILE"
       sudo tee /etc/yum.repos.d/netbird.repo <<'REPO'
 [netbird]
 name=netbird
