@@ -120,6 +120,19 @@ source "$INSTALLER_DIR/install/packages.sh"
 # ---------- Install packages ----------
 install_packages
 
+# ---------- Ensure target user has a real shell ----------
+configure_user_shell() {
+  local current_shell
+  current_shell="$(getent passwd "$TARGET_USER" | cut -d: -f7)"
+
+  if [[ "$current_shell" != "/bin/bash" ]]; then
+    section "Configuring login shell..."
+    sudo usermod --shell /bin/bash "$TARGET_USER"
+    echo "  $TARGET_USER -> /bin/bash"
+  fi
+}
+configure_user_shell
+
 # ---------- Install mise runtimes ----------
 install_mise_tools() {
   section "Installing runtimes via mise..."
