@@ -338,6 +338,7 @@ netbird_up() {
     --enable-rosenpass
     --rosenpass-permissive
     --wireguard-port 51821
+    --allow-server-ssh
     --enable-ssh-local-port-forwarding
     --enable-ssh-remote-port-forwarding
     --enable-ssh-root
