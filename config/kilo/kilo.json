@@ -1,0 +1,37 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "autoupdate": false,
+  "mcp": {
+    "ludus": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@badsectorlabs/ludus-mcp",
+        "--url",
+        "myurl.com",
+        "--api-key",
+        "myapikey"
+      ],
+      "enabled": false
+    }
+  },
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow"
+    },
+    "ludus_list_ludus_operations": {
+      "*": "allow"
+    },
+    "ludus_call_ludus_api": {
+      "*": "allow"
+    },
+    "ludus_describe_ludus_operation": {
+      "*": "allow"
+    },
+    "external_directory": {
+    }
+  }
+}
+
