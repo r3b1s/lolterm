@@ -38,6 +38,49 @@ repo_gpgcheck=1
 REPO
     sudo dnf install -y netbird
   fi
+
+  install_netbird_selinux_policy
+}
+
+install_netbird_selinux_policy() {
+  if ! command -v getenforce &>/dev/null || [[ "$(getenforce)" == "Disabled" ]]; then
+    return 0
+  fi
+
+  sudo dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-devel
+
+  local policy_dir policy_file
+  policy_dir="$(mktemp -d)"
+  policy_file="$policy_dir/lolterm_netbird_ssh.te"
+
+  cat > "$policy_file" <<'TE'
+policy_module(lolterm_netbird_ssh, 1.0)
+
+require {
+    type unconfined_t;
+}
+
+type netbird_t;
+type netbird_exec_t;
+init_daemon_domain(netbird_t, netbird_exec_t)
+unconfined_domain(netbird_t)
+
+# NetBird SSH launches /usr/bin/login, which transitions to the
+# authenticated user's shell domain before execing /usr/bin/bash.
+allow netbird_t unconfined_t:process transition;
+TE
+
+  make -C "$policy_dir" -f /usr/share/selinux/devel/Makefile lolterm_netbird_ssh.pp >/dev/null
+  sudo semodule -X 300 -i "$policy_dir/lolterm_netbird_ssh.pp"
+  sudo semanage fcontext -a -t netbird_exec_t '/usr/bin/netbird' 2>/dev/null || \
+    sudo semanage fcontext -m -t netbird_exec_t '/usr/bin/netbird'
+  sudo restorecon /usr/bin/netbird
+
+  if systemctl is-active --quiet netbird.service; then
+    sudo systemctl restart netbird.service
+  fi
+
+  rm -rf "$policy_dir"
 }
 
 netbird_up() {

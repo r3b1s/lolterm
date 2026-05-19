@@ -30,6 +30,8 @@ LazyVim is installed by cloning the official LazyVim starter repository. Trust b
 
 Netbird is optional and installed from the official Netbird RPM repository when selected in `lolterm-setup` or provisioned with `--netbird-setup-key` in headless mode. The repo uses GPG and repo metadata checks.
 
+When SELinux is enabled, NetBird provisioning installs a local `lolterm_netbird_ssh` policy module at priority 300. The module labels `/usr/bin/netbird` as `netbird_exec_t`, makes systemd-started NetBird run as `netbird_t`, and permits only `netbird_t` to transition into the authenticated user's `unconfined_t` shell domain through `/usr/bin/login`. This avoids a broad `unconfined_service_t` allowance while preserving SELinux enforcement.
+
 Tailscale is optional and installed through DNF when selected in `lolterm-setup` or provisioned with `--tailscale-auth-key` in headless mode.
 
 VPN enrollment keys and browser-link authentication can grant broad network access. Use scoped NetBird setup keys, Tailscale tagged auth keys, and restrictive ACLs/groups/policies for server endpoints.

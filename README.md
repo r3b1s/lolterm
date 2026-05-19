@@ -73,6 +73,9 @@ yq
 man-db
 ca-certificates
 dnf5-plugins
+policycoreutils
+policycoreutils-python-utils
+selinux-policy-devel
 fzf
 zoxide
 tmux
@@ -98,6 +101,7 @@ rtk
 LazyVim starter
 Tailscale optional
 Netbird optional
+lolterm NetBird SELinux policy optional
 ```
 
 ## Package Sources
@@ -113,6 +117,8 @@ Fedora DNF packages are preferred whenever available.
 `node` and `python` are installed and managed by mise.
 
 LazyVim is installed from the official LazyVim starter repository.
+
+NetBird provisioning installs a small local SELinux policy module on SELinux-enabled systems. The module gives NetBird its own `netbird_t` service domain and permits only that domain to transition into the authenticated user's shell domain for NetBird SSH.
 
 Docker, lazydocker, lazygit, uv, and global npm coding agents are intentionally not installed right now.
 

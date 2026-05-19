@@ -8,7 +8,7 @@ install_packages() {
   section "Installing packages..."
   sudo dnf install -y \
     @development-tools \
-    git openssh-server sudo less net-tools curl wget jq yq man-db ca-certificates dnf5-plugins \
+    git openssh-server sudo less net-tools curl wget jq yq man-db ca-certificates dnf5-plugins policycoreutils \
     fzf zoxide tmux btop tldr \
     ripgrep fd-find direnv bash-completion \
     neovim luarocks \
