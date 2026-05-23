@@ -10,6 +10,8 @@ TAILSCALE_AUTH_KEY=""
 XFCE_DESKTOP=false
 REMOTE_DESKTOP="none"
 OPEN_XRDP_FIREWALL=false
+USER_PASSWORD=""
+USER_PASSWORD_FILE=""
 
 usage() {
   cat <<'USAGE'
@@ -29,6 +31,12 @@ Options:
                      Remote desktop mode: xrdp or none
   --open-xrdp-firewall
                      Open 3389/tcp with firewalld when using XRDP
+  --user-password PASSWORD
+                     Set the target user's local password non-interactively
+                     for headless XRDP logins
+  --user-password-file FILE
+                     Read the target user's local password from FILE for
+                     headless XRDP logins
   --help             Show this help
 USAGE
 }
@@ -76,6 +84,22 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --open-xrdp-firewall) OPEN_XRDP_FIREWALL=true; shift ;;
+    --user-password)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --user-password" >&2
+        exit 1
+      fi
+      USER_PASSWORD="$2"
+      shift 2
+      ;;
+    --user-password-file)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --user-password-file" >&2
+        exit 1
+      fi
+      USER_PASSWORD_FILE="$2"
+      shift 2
+      ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -93,6 +117,33 @@ fi
 
 if $OPEN_XRDP_FIREWALL && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
   echo "--open-xrdp-firewall requires --remote-desktop xrdp." >&2
+  exit 1
+fi
+
+if [[ -n "$USER_PASSWORD" && -n "$USER_PASSWORD_FILE" ]]; then
+  echo "Use only one of --user-password or --user-password-file." >&2
+  exit 1
+fi
+
+if [[ -n "$USER_PASSWORD_FILE" ]]; then
+  if [[ ! -r "$USER_PASSWORD_FILE" ]]; then
+    echo "Password file is not readable: $USER_PASSWORD_FILE" >&2
+    exit 1
+  fi
+  USER_PASSWORD="$(<"$USER_PASSWORD_FILE")"
+  if [[ -z "$USER_PASSWORD" ]]; then
+    echo "Password file is empty: $USER_PASSWORD_FILE" >&2
+    exit 1
+  fi
+fi
+
+if [[ -n "$USER_PASSWORD" ]] && ! $HEADLESS; then
+  echo "--user-password and --user-password-file require --headless." >&2
+  exit 1
+fi
+
+if [[ -n "$USER_PASSWORD" ]] && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
+  echo "--user-password and --user-password-file require --remote-desktop xrdp." >&2
   exit 1
 fi
 
@@ -323,6 +374,18 @@ install_bins() {
 }
 install_bins
 
+persist_install_state() {
+  as_user mkdir -p "$TARGET_HOME/.config/lolterm"
+  cat > "$TARGET_HOME/.config/lolterm/install.env" <<EOF
+REMOTE_DESKTOP=$REMOTE_DESKTOP
+XFCE_DESKTOP=$XFCE_DESKTOP
+EOF
+  if [[ $EUID -eq 0 ]]; then
+    chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config/lolterm/install.env"
+  fi
+}
+persist_install_state
+
 # ---------- Optional XFCE remote desktop setup ----------
 setup_xfce_desktop() {
   $XFCE_DESKTOP || return 0
@@ -398,6 +461,16 @@ setup_ssh_key() {
   fi
 }
 setup_ssh_key
+
+setup_headless_xrdp_password() {
+  [[ "$REMOTE_DESKTOP" == "xrdp" ]] || return 0
+  [[ -n "$USER_PASSWORD" ]] || return 0
+
+  section "Configuring XRDP login password..."
+  printf '%s:%s\n' "$TARGET_USER" "$USER_PASSWORD" | sudo chpasswd
+  echo "  Password set for $TARGET_USER"
+}
+setup_headless_xrdp_password
 
 # ---------- Optional headless VPN provisioning ----------
 warn_vpn_access() {
@@ -527,7 +600,13 @@ enable_services
 
 # ---------- Interactive or headless ----------
 if $HEADLESS; then
-  section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
+  if [[ "$REMOTE_DESKTOP" == "xrdp" ]] && [[ -z "$USER_PASSWORD" ]]; then
+    section "Headless mode — XRDP was installed, but no local password was set"
+    echo "Set one later with: sudo passwd $TARGET_USER"
+    echo "Then run 'lolterm-setup' from a terminal if you want the optional XRDP password reminder flow."
+  else
+    section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
+  fi
 else
   as_user "$TARGET_HOME/.local/bin/lolterm-setup"
 fi

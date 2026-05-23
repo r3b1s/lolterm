@@ -59,6 +59,10 @@ Log out and back in when installation completes.
 
 `--open-xrdp-firewall`: Open `3389/tcp` with firewalld when `--remote-desktop xrdp` is selected.
 
+`--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
+
+`--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
+
 `--help`: Show installer options.
 
 ## What You Get
@@ -157,11 +161,25 @@ Install XFCE and XRDP during initial provisioning:
 bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
 ```
 
+To also set the local account password non-interactively for XRDP logins during a headless install:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp --user-password 'choose-a-strong-password'
+```
+
+Or read the password from a file instead:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp --user-password-file /path/to/password.txt
+```
+
 Install XFCE and XRDP later on an existing lolterm host:
 
 ```bash
 lolterm-install-desktop
 ```
+
+XRDP logins use the Fedora account password for the target user, not SSH keys. When XRDP was explicitly requested during install, the interactive `lolterm-setup` phase can optionally prompt to set or change that password for XRDP access.
 
 XRDP listens on `3389/tcp`. The installer does not open this port by default. Prefer access through a VPN, private network, security-group allowlist, or SSH tunnel.
 
@@ -266,7 +284,7 @@ Headless mode installs non-interactively, adds the SSH key to `~/.ssh/authorized
 
 Add `--netbird-setup-key`, `--tailscale-auth-key`, or both to provision VPNs during headless installation.
 
-After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, and optional additional SSH keys using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
+After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, optional additional SSH keys, and XRDP password setup when XRDP was explicitly requested during install, using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
 
 Review NetBird and Tailscale access controls before authenticating a server. Browser-link login usually enrolls the endpoint under the current user and may grant broad peer access if ACLs, groups, tags, or setup-key policies are not restricted.
 
