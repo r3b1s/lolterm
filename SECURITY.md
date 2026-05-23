@@ -36,6 +36,10 @@ Tailscale is optional and installed through DNF when selected in `lolterm-setup`
 
 VPN enrollment keys and browser-link authentication can grant broad network access. Use scoped NetBird setup keys, Tailscale tagged auth keys, and restrictive ACLs/groups/policies for server endpoints.
 
+XFCE, XRDP, xorgxrdp, and xrdp-selinux are optional and installed from Fedora DNF packages when `--xfce-desktop --remote-desktop xrdp` or `lolterm-install-desktop` is used. No non-DNF source is added for remote desktop support.
+
+XRDP listens on `3389/tcp` when enabled. The installer leaves the firewall closed by default; `--open-xrdp-firewall` explicitly opens the port with firewalld. Prefer VPN, private-network, security-group allowlist, or SSH-tunneled access instead of direct public internet exposure.
+
 ## Removed Or Deferred Sources
 
 Docker Engine and lazydocker are not installed. Future support should be added behind explicit Docker Engine vs Podman configuration.

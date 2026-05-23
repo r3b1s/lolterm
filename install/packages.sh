@@ -29,3 +29,18 @@ install_packages() {
     sudo dnf install -y mise
   fi
 }
+
+install_desktop_packages() {
+  local xfce_desktop="$1"
+  local remote_desktop="$2"
+
+  $xfce_desktop || return 0
+
+  section "Installing XFCE desktop..."
+  sudo dnf group install -y xfce-desktop
+
+  if [[ "$remote_desktop" == "xrdp" ]]; then
+    section "Installing XRDP remote desktop..."
+    sudo dnf install -y xrdp xorgxrdp xrdp-selinux
+  fi
+}

@@ -7,6 +7,9 @@ TMUX_AUTOSTART=false
 SSH_KEY=""
 NETBIRD_SETUP_KEY=""
 TAILSCALE_AUTH_KEY=""
+XFCE_DESKTOP=false
+REMOTE_DESKTOP="none"
+OPEN_XRDP_FIREWALL=false
 
 usage() {
   cat <<'USAGE'
@@ -21,6 +24,11 @@ Options:
                      Provision NetBird non-interactively
   --tailscale-auth-key KEY
                      Provision Tailscale non-interactively
+  --xfce-desktop     Install the XFCE desktop environment
+  --remote-desktop MODE
+                     Remote desktop mode: xrdp or none
+  --open-xrdp-firewall
+                     Open 3389/tcp with firewalld when using XRDP
   --help             Show this help
 USAGE
 }
@@ -55,6 +63,19 @@ while [[ $# -gt 0 ]]; do
       TAILSCALE_AUTH_KEY="$2"
       shift 2
       ;;
+    --xfce-desktop) XFCE_DESKTOP=true; shift ;;
+    --remote-desktop)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --remote-desktop" >&2
+        exit 1
+      fi
+      case "$2" in
+        xrdp|none) REMOTE_DESKTOP="$2" ;;
+        *) echo "Unsupported remote desktop mode: $2" >&2; exit 1 ;;
+      esac
+      shift 2
+      ;;
+    --open-xrdp-firewall) OPEN_XRDP_FIREWALL=true; shift ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -62,6 +83,16 @@ done
 
 if ! $HEADLESS && { [[ -n "$NETBIRD_SETUP_KEY" ]] || [[ -n "$TAILSCALE_AUTH_KEY" ]]; }; then
   echo "VPN provisioning keys require --headless." >&2
+  exit 1
+fi
+
+if [[ "$REMOTE_DESKTOP" != "none" ]] && ! $XFCE_DESKTOP; then
+  echo "--remote-desktop requires --xfce-desktop." >&2
+  exit 1
+fi
+
+if $OPEN_XRDP_FIREWALL && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
+  echo "--open-xrdp-firewall requires --remote-desktop xrdp." >&2
   exit 1
 fi
 
@@ -119,6 +150,7 @@ source "$INSTALLER_DIR/install/packages.sh"
 
 # ---------- Install packages ----------
 install_packages
+install_desktop_packages "$XFCE_DESKTOP" "$REMOTE_DESKTOP"
 
 # ---------- Ensure target user has a real shell ----------
 configure_user_shell() {
@@ -279,13 +311,62 @@ install_bins() {
   as_user mkdir -p "$TARGET_HOME/.local/bin"
   cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
   cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-refresh"
+  cp -f "$INSTALLER_DIR/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-install-desktop"
   cp -f "$INSTALLER_DIR/bin/lolterm-update-tools" "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-update-tools"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-update-tools"
   echo "  lolterm-setup"
   echo "  lolterm-refresh"
+  echo "  lolterm-install-desktop"
   echo "  lolterm-update-tools"
 }
 install_bins
+
+# ---------- Optional XFCE remote desktop setup ----------
+setup_xfce_desktop() {
+  $XFCE_DESKTOP || return 0
+
+  section "Configuring XFCE desktop..."
+
+  local xclients="$TARGET_HOME/.Xclients"
+  if [[ ! -e "$xclients" ]] || grep -qF "# ----- lolterm XFCE session -----" "$xclients" 2>/dev/null; then
+    cat > "$xclients" <<'XCLIENTS'
+#!/usr/bin/env bash
+# ----- lolterm XFCE session -----
+exec startxfce4
+# ----- /lolterm XFCE session -----
+XCLIENTS
+    chmod +x "$xclients"
+    if [[ $EUID -eq 0 ]]; then
+      chown "$TARGET_USER:$TARGET_USER" "$xclients"
+    fi
+    echo "  XFCE session -> $xclients"
+  else
+    echo "  Existing $xclients found; leaving it unchanged"
+    echo "  Ensure it starts XFCE for XRDP sessions if needed"
+  fi
+}
+setup_xfce_desktop
+
+open_xrdp_firewall() {
+  $OPEN_XRDP_FIREWALL || return 0
+
+  section "Opening XRDP firewall port..."
+
+  if ! command -v firewall-cmd &>/dev/null; then
+    echo "  firewalld is not installed; skipping 3389/tcp firewall rule"
+    return 0
+  fi
+
+  if ! systemctl is-active --quiet firewalld.service; then
+    echo "  firewalld is not active; skipping 3389/tcp firewall rule"
+    return 0
+  fi
+
+  sudo firewall-cmd --permanent --add-port=3389/tcp
+  sudo firewall-cmd --add-port=3389/tcp
+  echo "  Opened 3389/tcp"
+}
+open_xrdp_firewall
 
 # ---------- Fix ownership (in case root created files via cp) ----------
 if [[ $EUID -eq 0 ]]; then
@@ -434,6 +515,11 @@ enable_services() {
 
   sudo systemctl enable --now sshd.service
   echo "  SSH"
+
+  if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
+    sudo systemctl enable --now xrdp.service
+    echo "  XRDP"
+  fi
 }
 enable_services
 

@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, mise-managed Node and Python, Rust from Fedora packages, and optional root shell configuration.
+Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, mise-managed Node and Python, Rust from Fedora packages, optional XFCE/XRDP remote desktop, and optional root shell configuration.
 
 ## Quick Start
 
@@ -25,6 +25,18 @@ bash install.sh --headless --netbird-setup-key "nb_setup_key..."
 bash install.sh --headless --tailscale-auth-key "tskey-auth-..."
 ```
 
+For a cloud desktop reachable with an RDP client:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
+```
+
+To add the desktop later on an existing lolterm host:
+
+```bash
+lolterm-install-desktop
+```
+
 Log out and back in when installation completes.
 
 ## Installer Flags
@@ -41,6 +53,12 @@ Log out and back in when installation completes.
 
 `--tmux-autostart`: Add an interactive-shell-only tmux autostart block.
 
+`--xfce-desktop`: Install the XFCE desktop environment.
+
+`--remote-desktop xrdp|none`: Select remote desktop mode. `xrdp` installs and enables XRDP for RDP clients.
+
+`--open-xrdp-firewall`: Open `3389/tcp` with firewalld when `--remote-desktop xrdp` is selected.
+
 `--help`: Show installer options.
 
 ## What You Get
@@ -54,6 +72,8 @@ Log out and back in when installation completes.
 **Git**: git and GitHub CLI.
 
 **Networking**: SSH server and optional Tailscale or NetBird setup during `lolterm-setup` or headless provisioning.
+
+**Desktop**: Optional XFCE desktop with XRDP for RDP clients.
 
 ## Package List
 
@@ -102,6 +122,10 @@ LazyVim starter
 Tailscale optional
 Netbird optional
 lolterm NetBird SELinux policy optional
+@xfce-desktop optional
+xrdp optional
+xorgxrdp optional
+xrdp-selinux optional
 ```
 
 ## Package Sources
@@ -120,7 +144,31 @@ LazyVim is installed from the official LazyVim starter repository.
 
 NetBird provisioning installs a small local SELinux policy module on SELinux-enabled systems. The module gives NetBird its own `netbird_t` service domain and permits only that domain to transition into the authenticated user's shell domain for NetBird SSH.
 
+XFCE, XRDP, xorgxrdp, and xrdp-selinux are installed from Fedora DNF packages when `--xfce-desktop --remote-desktop xrdp` is selected.
+
 Docker, lazydocker, lazygit, uv, and global npm coding agents are intentionally not installed right now.
+
+## Remote Desktop
+
+Install XFCE and XRDP during initial provisioning:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
+```
+
+Install XFCE and XRDP later on an existing lolterm host:
+
+```bash
+lolterm-install-desktop
+```
+
+XRDP listens on `3389/tcp`. The installer does not open this port by default. Prefer access through a VPN, private network, security-group allowlist, or SSH tunnel.
+
+To open `3389/tcp` with firewalld during install, pass `--open-xrdp-firewall`:
+
+```bash
+lolterm-install-desktop --open-xrdp-firewall
+```
 
 ## Updating
 
@@ -236,6 +284,7 @@ config/shell/tmux_fns              tdl, tdlm, tsl
 config/nvim/lua/config/            LazyVim overrides
 bin/lolterm-setup                  interactive post-install config
 bin/lolterm-refresh                re-runs the installer without remote shell piping
+bin/lolterm-install-desktop        installs optional XFCE/XRDP desktop later
 bin/lolterm-update-tools           updates lolterm-managed non-DNF tools
 ```
 
