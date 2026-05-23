@@ -115,6 +115,7 @@ rust
 cargo
 mise
 node
+pnpm
 python
 starship
 rtk
@@ -138,7 +139,7 @@ Fedora DNF packages are preferred whenever available.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM after SHA-256 verification.
 
-`node` and `python` are installed and managed by mise.
+`node` and `python` are installed and managed by mise. `pnpm` is enabled as the default Node package manager through Node's Corepack.
 
 LazyVim is installed from the official LazyVim starter repository.
 

@@ -170,6 +170,8 @@ install_mise_tools() {
   section "Installing runtimes via mise..."
   eval "$(mise activate bash)" 2>/dev/null || true
   as_user mise use -g node@lts
+  as_user corepack enable pnpm
+  as_user corepack prepare pnpm@latest --activate
   as_user mise use -g python
   export PATH="$TARGET_HOME/.local/share/mise/shims:$PATH"
 }

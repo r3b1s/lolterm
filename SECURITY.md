@@ -26,6 +26,8 @@ Every package source change must be documented in `README.md` and this file.
 
 `node` and `python` are installed by mise. Trust basis: mise runtime management. Update command: `mise upgrade`.
 
+`pnpm` is enabled through Node's Corepack and prepared from the Corepack-managed pnpm release metadata. Trust basis: Node/Corepack package-manager distribution. Update command: `corepack prepare pnpm@latest --activate`.
+
 LazyVim is installed by cloning the official LazyVim starter repository. Trust basis: upstream documented starter repository. Updates are handled by Neovim/LazyVim plugin tooling after installation.
 
 Netbird is optional and installed from the official Netbird RPM repository when selected in `lolterm-setup` or provisioned with `--netbird-setup-key` in headless mode. The repo uses GPG and repo metadata checks.
