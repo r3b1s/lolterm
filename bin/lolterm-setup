@@ -9,6 +9,42 @@ section() {
   gum style --bold --foreground 4 "==> $1"
 }
 
+installer_requested_xrdp() {
+  local state_file="$HOME/.config/lolterm/install.env"
+  [[ -f "$state_file" ]] || return 1
+  # shellcheck disable=SC1090
+  source "$state_file"
+  [[ "${REMOTE_DESKTOP:-none}" == "xrdp" ]]
+}
+
+user_has_local_password() {
+  local status
+  status=$(sudo passwd -S "$USER" 2>/dev/null | awk '{print $2}') || return 1
+  [[ "$status" == "P" || "$status" == "PS" ]]
+}
+
+setup_xrdp_password() {
+  installer_requested_xrdp || return 0
+
+  section "XRDP Access"
+  echo "XRDP logins use your Fedora account password. SSH key setup does not configure an XRDP login password."
+
+  if user_has_local_password; then
+    echo "A local password is already set for $USER."
+    if gum confirm "Change the password used for XRDP logins?" </dev/tty; then
+      sudo passwd "$USER" </dev/tty
+    fi
+  else
+    gum style --bold --foreground 3 "No local password detected for $USER."
+    echo "XRDP logins require a local password for this account."
+    if gum confirm "Set a password for XRDP logins now?" </dev/tty; then
+      sudo passwd "$USER" </dev/tty
+    else
+      echo "Skipping password setup. Set one later with: sudo passwd $USER"
+    fi
+  fi
+}
+
 warn_vpn_access() {
   local vpn="$1"
   gum style --bold --foreground 3 "Access control warning"
@@ -253,5 +289,7 @@ if [ ! -f "$HOME/.ssh/authorized_keys" ] || [ ! -s "$HOME/.ssh/authorized_keys" 
     fi
   fi
 fi
+
+setup_xrdp_password
 
 section "Setup complete!"

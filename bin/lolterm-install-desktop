@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="https://github.com/r3b1s/lolterm.git"
+INSTALLER_DIR="$(mktemp -d)"
+trap 'rm -rf "$INSTALLER_DIR"' EXIT
+
+section() {
+  echo -e "\n==> $1"
+}
+
+TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_HOME=$(eval echo "~${TARGET_USER}")
+
+export HOME="$TARGET_HOME"
+
+OPEN_XRDP_FIREWALL=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --open-xrdp-firewall) OPEN_XRDP_FIREWALL=true; shift ;;
+    --help)
+      cat <<'USAGE'
+Usage: lolterm-install-desktop [--open-xrdp-firewall]
+
+Installs/configures XFCE and XRDP only. It does not rerun first-time lolterm bootstrap.
+USAGE
+      exit 0
+      ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
+
+echo "Installing lolterm XFCE desktop with XRDP..."
+git clone --depth 1 "$REPO" "$INSTALLER_DIR"
+source "$INSTALLER_DIR/install/operations.sh"
+source "$INSTALLER_DIR/install/packages.sh"
+
+install_xfce_desktop_packages
+configure_xfce_session
+install_xrdp_remote_desktop_packages
+configure_xrdp_remote_desktop
+$OPEN_XRDP_FIREWALL && open_xrdp_firewall_port
+enable_xrdp_services
+
+echo "Done. Log out and back in, then connect with an RDP client."

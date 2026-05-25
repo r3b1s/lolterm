@@ -29,3 +29,14 @@ install_packages() {
     sudo dnf install -y mise
   fi
 }
+
+install_desktop_packages() {
+  local xfce_desktop="$1"
+  local remote_desktop="$2"
+
+  $xfce_desktop && install_xfce_desktop_packages
+
+  if [[ "$remote_desktop" == "xrdp" ]]; then
+    install_xrdp_remote_desktop_packages
+  fi
+}

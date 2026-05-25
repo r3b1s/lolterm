@@ -1,6 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ASSUME_YES=false
+
+usage() {
+  cat <<'USAGE'
+Usage: lolterm-update [options]
+
+Options:
+  -y, --yes   Run DNF upgrade non-interactively
+  --help      Show this help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -y|--yes) ASSUME_YES=true; shift ;;
+    --help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+update_dnf_packages() {
+  echo "Updating Fedora DNF packages..."
+  if $ASSUME_YES; then
+    sudo dnf upgrade -y
+  else
+    sudo dnf upgrade
+  fi
+}
+
 update_rtk() {
   echo "Updating rtk..."
 
@@ -27,6 +56,7 @@ update_rtk() {
   rm -rf "$tmpdir"
 }
 
+update_dnf_packages
 update_rtk
 
-echo "lolterm-managed non-DNF tools updated."
+echo "Fedora packages and lolterm-managed non-DNF tools updated."

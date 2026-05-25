@@ -1,1 +1,6 @@
 tmp.md
+
+# Machine-local system configuration reference copies.
+/local-system-config/**
+!/local-system-config/
+!/local-system-config/README.md

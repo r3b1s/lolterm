@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, mise-managed Node and Python, Rust from Fedora packages, and optional root shell configuration.
+Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, mise-managed Node and Python, Rust from Fedora packages, optional XFCE desktop and XRDP remote desktop access, and optional root shell configuration.
 
 ## Quick Start
 
@@ -25,6 +25,18 @@ bash install.sh --headless --netbird-setup-key "nb_setup_key..."
 bash install.sh --headless --tailscale-auth-key "tskey-auth-..."
 ```
 
+For a cloud desktop reachable with an RDP client:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
+```
+
+To add the desktop later on an existing lolterm host:
+
+```bash
+lolterm-install-desktop
+```
+
 Log out and back in when installation completes.
 
 ## Installer Flags
@@ -41,6 +53,18 @@ Log out and back in when installation completes.
 
 `--tmux-autostart`: Add an interactive-shell-only tmux autostart block.
 
+`--xfce-desktop`: Install the XFCE desktop environment.
+
+`--remote-desktop xrdp|none`: Select remote desktop mode. `xrdp` installs and enables XRDP for RDP clients.
+
+`--open-xrdp-firewall`: Open `3389/tcp` with firewalld when `--remote-desktop xrdp` is selected.
+
+`--enable-host-firewall`: Configure an explicit firewalld host firewall with deny-by-default inbound posture, SSH allowed, and XRDP allowed only when `--remote-desktop xrdp` is selected. In headless mode this requires `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`.
+
+`--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
+
+`--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
+
 `--help`: Show installer options.
 
 ## What You Get
@@ -54,6 +78,10 @@ Log out and back in when installation completes.
 **Git**: git and GitHub CLI.
 
 **Networking**: SSH server and optional Tailscale or NetBird setup during `lolterm-setup` or headless provisioning.
+
+**Desktop**: Optional XFCE desktop environment from Fedora packages.
+
+**Remote desktop**: Optional XRDP access for RDP clients, configured separately from the desktop environment.
 
 ## Package List
 
@@ -95,6 +123,7 @@ rust
 cargo
 mise
 node
+pnpm
 python
 starship
 rtk
@@ -102,6 +131,11 @@ LazyVim starter
 Tailscale optional
 Netbird optional
 lolterm NetBird SELinux policy optional
+@xfce-desktop optional
+xrdp optional
+xorgxrdp optional
+xrdp-selinux optional
+firewalld optional with --enable-host-firewall
 ```
 
 ## Package Sources
@@ -114,13 +148,69 @@ Fedora DNF packages are preferred whenever available.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM after SHA-256 verification.
 
-`node` and `python` are installed and managed by mise.
+`node` and `python` are installed and managed by mise. `pnpm` is enabled as the default Node package manager through Node's Corepack.
 
 LazyVim is installed from the official LazyVim starter repository.
 
 NetBird provisioning installs a small local SELinux policy module on SELinux-enabled systems. The module gives NetBird its own `netbird_t` service domain and permits only that domain to transition into the authenticated user's shell domain for NetBird SSH.
 
+XFCE is installed from Fedora's `xfce-desktop` package group when `--xfce-desktop` is selected. XRDP, xorgxrdp, and xrdp-selinux are installed from Fedora DNF packages when `--remote-desktop xrdp` is selected. firewalld is installed from Fedora DNF packages when `--enable-host-firewall` requires it.
+
 Docker, lazydocker, lazygit, uv, and global npm coding agents are intentionally not installed right now.
+
+## Desktop and Remote Desktop
+
+`--xfce-desktop` installs and configures the Fedora XFCE desktop. It writes an executable, lolterm-marked `~/.Xclients` containing `exec startxfce4` when the file is absent or already lolterm-managed; unmarked custom files are left unchanged.
+
+`--remote-desktop xrdp` is separate remote access setup. It requires `--xfce-desktop`, installs Fedora XRDP packages, configures XRDP for Xorg/xorgxrdp, and enables XRDP only when explicitly requested.
+
+Install XFCE and XRDP during initial provisioning:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
+```
+
+To also set the local account password non-interactively for XRDP logins during a headless install:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp --user-password 'choose-a-strong-password'
+```
+
+Or read the password from a file instead:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp --user-password-file /path/to/password.txt
+```
+
+Install XFCE and XRDP later on an existing lolterm host:
+
+```bash
+lolterm-install-desktop
+```
+
+The follow-up command performs only focused desktop/XRDP operations. It does not rerun first-time bootstrap work such as base package upgrades, dotfile installation, runtime setup, VPN setup, or SSH configuration.
+
+XRDP logins use the Fedora account password for the target user, not SSH keys. When XRDP was explicitly requested during install, the interactive `lolterm-setup` phase can optionally prompt to set or change that password for XRDP access.
+
+lolterm configures XRDP as Xorg/xorgxrdp-only with `autorun=Xorg`, no active Xvnc session path, `security_layer=tls`, and `ssl_protocols=TLSv1.3`. Clients that cannot negotiate TLSv1.3 are expected to fail rather than fall back to weaker protocols.
+
+XRDP uses Fedora's default package-managed self-signed certificate paths. Configure clients with trust-on-first-use or certificate fingerprint pinning; do not disable certificate verification for convenience.
+
+XRDP listens on `3389/tcp`. The installer does not open this port by default. Prefer access through a VPN, private network, security-group allowlist, or SSH tunnel.
+
+To open `3389/tcp` with firewalld during install, pass `--open-xrdp-firewall`:
+
+```bash
+lolterm-install-desktop --open-xrdp-firewall
+```
+
+## Host Firewall
+
+By default, lolterm preserves Fedora Cloud's baseline network posture and does not impose a custom host firewall policy. Use cloud firewalls, security groups, VPN policy, or other platform controls as appropriate.
+
+For hosts without an external firewall, pass `--enable-host-firewall` during install or run `lolterm-configure-firewall` later. This enables firewalld with a `lolterm` zone, deny-by-default inbound behavior, and SSH allowed before the firewall is applied. XRDP is allowed only when XRDP was explicitly requested during install, or when `lolterm-configure-firewall --allow-xrdp` is used later.
+
+In headless installs, `--enable-host-firewall` requires an explicit access path: `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`. lolterm does not currently add VPN-specific firewall allowances; NetBird and Tailscale firewall behavior should be reviewed before adding such rules.
 
 ## Updating
 
@@ -130,17 +220,13 @@ Refresh the lolterm installer and configs:
 lolterm-refresh
 ```
 
-Update lolterm-managed non-DNF tools (currently RTK):
+Update Fedora-managed packages and lolterm-managed non-DNF tools (currently RTK):
 
 ```bash
-lolterm-update-tools
+lolterm-update
 ```
 
-Update Fedora-managed packages:
-
-```bash
-sudo dnf upgrade
-```
+Pass `-y` or `--yes` to let the DNF upgrade run non-interactively.
 
 Update mise-managed runtimes:
 
@@ -217,7 +303,7 @@ Headless mode installs non-interactively, adds the SSH key to `~/.ssh/authorized
 
 Add `--netbird-setup-key`, `--tailscale-auth-key`, or both to provision VPNs during headless installation.
 
-After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, and optional additional SSH keys using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
+After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, optional additional SSH keys, and XRDP password setup when XRDP was explicitly requested during install, using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
 
 Review NetBird and Tailscale access controls before authenticating a server. Browser-link login usually enrolls the endpoint under the current user and may grant broad peer access if ACLs, groups, tags, or setup-key policies are not restricted.
 
@@ -236,7 +322,9 @@ config/shell/tmux_fns              tdl, tdlm, tsl
 config/nvim/lua/config/            LazyVim overrides
 bin/lolterm-setup                  interactive post-install config
 bin/lolterm-refresh                re-runs the installer without remote shell piping
-bin/lolterm-update-tools           updates lolterm-managed non-DNF tools
+bin/lolterm-install-desktop        installs optional XFCE/XRDP desktop later
+bin/lolterm-configure-firewall     configures the optional host firewall later
+bin/lolterm-update                 updates DNF packages and lolterm-managed non-DNF tools
 ```
 
 ## Requirements

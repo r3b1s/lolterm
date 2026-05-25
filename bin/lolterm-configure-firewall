@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ALLOW_XRDP=false
+
+section() {
+  echo -e "\n==> $1"
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: lolterm-configure-firewall [options]
+
+Options:
+  --allow-xrdp   Allow XRDP on 3389/tcp in addition to SSH
+  --help         Show this help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --allow-xrdp) ALLOW_XRDP=true; shift ;;
+    --help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+configure_host_firewall() {
+  local allow_xrdp="${1:-false}"
+  local zone="lolterm"
+
+  section "Configuring host firewall..."
+
+  if ! command -v firewall-cmd &>/dev/null; then
+    sudo dnf install -y firewalld
+  fi
+
+  sudo systemctl enable --now firewalld.service
+
+  if ! sudo firewall-cmd --permanent --get-zones | tr ' ' '\n' | grep -qxF "$zone"; then
+    sudo firewall-cmd --permanent --new-zone="$zone"
+  fi
+
+  # Allow SSH before making this zone the default deny-by-default inbound zone.
+  sudo firewall-cmd --permanent --zone="$zone" --add-service=ssh
+
+  if [[ "$allow_xrdp" == "true" ]]; then
+    sudo firewall-cmd --permanent --zone="$zone" --add-port=3389/tcp
+  fi
+
+  sudo firewall-cmd --permanent --zone="$zone" --set-target=DROP
+  sudo firewall-cmd --reload
+  sudo firewall-cmd --set-default-zone="$zone"
+
+  if ! sudo firewall-cmd --zone="$zone" --query-service=ssh >/dev/null; then
+    echo "Failed to verify SSH firewall allowance in zone $zone" >&2
+    return 1
+  fi
+
+  echo "  Enabled firewalld zone '$zone' with inbound SSH allowed"
+  if [[ "$allow_xrdp" == "true" ]]; then
+    echo "  Allowed XRDP on 3389/tcp"
+  fi
+  echo "  No VPN-specific firewall allowances were added"
+}
+
+configure_host_firewall "$ALLOW_XRDP"

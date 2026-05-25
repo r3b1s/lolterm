@@ -7,6 +7,12 @@ TMUX_AUTOSTART=false
 SSH_KEY=""
 NETBIRD_SETUP_KEY=""
 TAILSCALE_AUTH_KEY=""
+XFCE_DESKTOP=false
+REMOTE_DESKTOP="none"
+OPEN_XRDP_FIREWALL=false
+ENABLE_HOST_FIREWALL=false
+USER_PASSWORD=""
+USER_PASSWORD_FILE=""
 
 usage() {
   cat <<'USAGE'
@@ -21,6 +27,19 @@ Options:
                      Provision NetBird non-interactively
   --tailscale-auth-key KEY
                      Provision Tailscale non-interactively
+  --xfce-desktop     Install the XFCE desktop environment
+  --remote-desktop MODE
+                     Remote desktop mode: xrdp or none
+  --open-xrdp-firewall
+                     Open 3389/tcp with firewalld when using XRDP
+  --enable-host-firewall
+                     Configure a deny-by-default inbound firewalld host firewall
+  --user-password PASSWORD
+                     Set the target user's local password non-interactively
+                     for headless XRDP logins
+  --user-password-file FILE
+                     Read the target user's local password from FILE for
+                     headless XRDP logins
   --help             Show this help
 USAGE
 }
@@ -55,6 +74,36 @@ while [[ $# -gt 0 ]]; do
       TAILSCALE_AUTH_KEY="$2"
       shift 2
       ;;
+    --xfce-desktop) XFCE_DESKTOP=true; shift ;;
+    --remote-desktop)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --remote-desktop" >&2
+        exit 1
+      fi
+      case "$2" in
+        xrdp|none) REMOTE_DESKTOP="$2" ;;
+        *) echo "Unsupported remote desktop mode: $2" >&2; exit 1 ;;
+      esac
+      shift 2
+      ;;
+    --open-xrdp-firewall) OPEN_XRDP_FIREWALL=true; shift ;;
+    --enable-host-firewall) ENABLE_HOST_FIREWALL=true; shift ;;
+    --user-password)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --user-password" >&2
+        exit 1
+      fi
+      USER_PASSWORD="$2"
+      shift 2
+      ;;
+    --user-password-file)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --user-password-file" >&2
+        exit 1
+      fi
+      USER_PASSWORD_FILE="$2"
+      shift 2
+      ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -62,6 +111,48 @@ done
 
 if ! $HEADLESS && { [[ -n "$NETBIRD_SETUP_KEY" ]] || [[ -n "$TAILSCALE_AUTH_KEY" ]]; }; then
   echo "VPN provisioning keys require --headless." >&2
+  exit 1
+fi
+
+if [[ "$REMOTE_DESKTOP" != "none" ]] && ! $XFCE_DESKTOP; then
+  echo "--remote-desktop requires --xfce-desktop." >&2
+  exit 1
+fi
+
+if $OPEN_XRDP_FIREWALL && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
+  echo "--open-xrdp-firewall requires --remote-desktop xrdp." >&2
+  exit 1
+fi
+
+if $ENABLE_HOST_FIREWALL && $HEADLESS && [[ -z "$SSH_KEY" && -z "$NETBIRD_SETUP_KEY" && -z "$TAILSCALE_AUTH_KEY" ]]; then
+  echo "--enable-host-firewall in --headless mode requires --ssh-key, --netbird-setup-key, or --tailscale-auth-key." >&2
+  exit 1
+fi
+
+if [[ -n "$USER_PASSWORD" && -n "$USER_PASSWORD_FILE" ]]; then
+  echo "Use only one of --user-password or --user-password-file." >&2
+  exit 1
+fi
+
+if [[ -n "$USER_PASSWORD_FILE" ]]; then
+  if [[ ! -r "$USER_PASSWORD_FILE" ]]; then
+    echo "Password file is not readable: $USER_PASSWORD_FILE" >&2
+    exit 1
+  fi
+  USER_PASSWORD="$(<"$USER_PASSWORD_FILE")"
+  if [[ -z "$USER_PASSWORD" ]]; then
+    echo "Password file is empty: $USER_PASSWORD_FILE" >&2
+    exit 1
+  fi
+fi
+
+if [[ -n "$USER_PASSWORD" ]] && ! $HEADLESS; then
+  echo "--user-password and --user-password-file require --headless." >&2
+  exit 1
+fi
+
+if [[ -n "$USER_PASSWORD" ]] && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
+  echo "--user-password and --user-password-file require --remote-desktop xrdp." >&2
   exit 1
 fi
 
@@ -114,11 +205,13 @@ git clone --depth 1 "$REPO" "$INSTALLER_DIR"
 show_banner
 section "Installing lolterm on Fedora..."
 
-# ---------- Source package installer ----------
+# ---------- Source installer operations ----------
+source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
 
 # ---------- Install packages ----------
 install_packages
+install_desktop_packages "$XFCE_DESKTOP" "$REMOTE_DESKTOP"
 
 # ---------- Ensure target user has a real shell ----------
 configure_user_shell() {
@@ -137,7 +230,9 @@ configure_user_shell
 install_mise_tools() {
   section "Installing runtimes via mise..."
   eval "$(mise activate bash)" 2>/dev/null || true
-  as_user mise use -g node
+  as_user mise use -g node@lts
+  as_user corepack enable pnpm
+  as_user corepack prepare pnpm@latest --activate
   as_user mise use -g python
   export PATH="$TARGET_HOME/.local/share/mise/shims:$PATH"
 }
@@ -279,13 +374,25 @@ install_bins() {
   as_user mkdir -p "$TARGET_HOME/.local/bin"
   cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
   cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-refresh"
-  cp -f "$INSTALLER_DIR/bin/lolterm-update-tools" "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-update-tools"
+  cp -f "$INSTALLER_DIR/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-install-desktop"
+  cp -f "$INSTALLER_DIR/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-configure-firewall"
+  cp -f "$INSTALLER_DIR/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-update"
+  rm -f "$TARGET_HOME/.local/bin/lolterm-update-tools"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update"
   echo "  lolterm-setup"
   echo "  lolterm-refresh"
-  echo "  lolterm-update-tools"
+  echo "  lolterm-install-desktop"
+  echo "  lolterm-configure-firewall"
+  echo "  lolterm-update"
 }
 install_bins
+
+# ---------- Optional desktop and remote desktop setup ----------
+$XFCE_DESKTOP && configure_xfce_session
+if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
+  configure_xrdp_remote_desktop
+fi
+$OPEN_XRDP_FIREWALL && open_xrdp_firewall_port
 
 # ---------- Fix ownership (in case root created files via cp) ----------
 if [[ $EUID -eq 0 ]]; then
@@ -315,6 +422,16 @@ setup_ssh_key() {
   fi
 }
 setup_ssh_key
+
+setup_headless_xrdp_password() {
+  [[ "$REMOTE_DESKTOP" == "xrdp" ]] || return 0
+  [[ -n "$USER_PASSWORD" ]] || return 0
+
+  section "Configuring XRDP login password..."
+  printf '%s:%s\n' "$TARGET_USER" "$USER_PASSWORD" | sudo chpasswd
+  echo "  Password set for $TARGET_USER"
+}
+setup_headless_xrdp_password
 
 # ---------- Optional headless VPN provisioning ----------
 warn_vpn_access() {
@@ -434,12 +551,26 @@ enable_services() {
 
   sudo systemctl enable --now sshd.service
   echo "  SSH"
+
+  if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
+    enable_xrdp_services
+  fi
 }
 enable_services
 
+if $ENABLE_HOST_FIREWALL; then
+  configure_host_firewall "$([[ "$REMOTE_DESKTOP" == "xrdp" ]] && echo true || echo false)"
+fi
+
 # ---------- Interactive or headless ----------
 if $HEADLESS; then
-  section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
+  if [[ "$REMOTE_DESKTOP" == "xrdp" ]] && [[ -z "$USER_PASSWORD" ]]; then
+    section "Headless mode — XRDP was installed, but no local password was set"
+    echo "Set one later with: sudo passwd $TARGET_USER"
+    echo "Then run 'lolterm-setup' from a terminal if you want the optional XRDP password reminder flow."
+  else
+    section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
+  fi
 else
   as_user "$TARGET_HOME/.local/bin/lolterm-setup"
 fi
