@@ -1,5 +1,7 @@
-## ADDED Requirements
+## Purpose
 
+Define package source, trust, verification, and update documentation requirements for lolterm-managed software.
+## Requirements
 ### Requirement: Fedora official DNF packages are preferred
 
 The system SHALL prefer packages from official Fedora repositories whenever suitable.
@@ -105,16 +107,15 @@ The system SHALL add external non-COPR DNF repositories only case-by-case when o
 - **THEN** the repository remains enabled for normal `dnf upgrade` updates
 
 ### Requirement: Core baseline avoids arbitrary global language tools
+The system SHALL keep arbitrary global language-package tools and optional runtime-manager infrastructure out of the core baseline installation unless the user explicitly requests an optional module.
 
-The system SHALL keep arbitrary global language-package tools out of the core baseline installation.
+#### Scenario: Core baseline installs packages
+- **WHEN** lolterm performs the default installation
+- **THEN** it does not install optional runtime managers such as mise or Corepack and does not install arbitrary global language-package tools by default
 
-#### Scenario: Core baseline installs runtime infrastructure
-- **WHEN** lolterm installs runtime or package-manager infrastructure such as mise or Corepack
-- **THEN** that infrastructure may be part of the core baseline
-
-#### Scenario: Arbitrary global language tool is desired
-- **WHEN** a global npm, pip, cargo, or similar package-manager tool is desired
-- **THEN** it belongs in a separate optional or experimental module rather than the core baseline
+#### Scenario: Optional runtime module is requested
+- **WHEN** a user explicitly requests runtime infrastructure such as the optional mise module
+- **THEN** lolterm may install that runtime manager and user-selected global tools outside the core baseline under the documented trust and update model
 
 ### Requirement: Optional language-package tools require trust records
 
@@ -175,3 +176,11 @@ The system SHALL treat `lolterm-update` as an optional convenience wrapper, not 
 #### Scenario: lolterm-update runs later
 - **WHEN** `lolterm-update` runs after provisioning
 - **THEN** it does not update lolterm itself or fetch new tool definitions from newer lolterm repository versions
+
+### Requirement: Optional runtime module trust records stay current
+The system SHALL document optional runtime-module source and update behavior wherever lolterm records package-source trust.
+
+#### Scenario: Optional mise module behavior changes
+- **WHEN** lolterm changes how the optional mise module installs or updates tools such as node, pnpm, bun, or python
+- **THEN** the corresponding trust and update records are updated in the repository documentation in the same change
+

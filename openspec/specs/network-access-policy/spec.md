@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Fedora Cloud network baseline is preserved by default
 

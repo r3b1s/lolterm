@@ -1,9 +1,7 @@
 ## Purpose
 
 Define lolterm's core platform baseline, safety model, and capability layering expectations.
-
 ## Requirements
-
 ### Requirement: Fedora Cloud is the supported baseline
 
 The system SHALL target the current major Fedora Cloud release as its primary supported platform.
@@ -17,12 +15,11 @@ The system SHALL target the current major Fedora Cloud release as its primary su
 - **THEN** support is best-effort unless explicitly documented
 
 ### Requirement: Default install remains a conservative cloud development environment
-
 The system SHALL keep the default installation focused on a minimal cloud development environment.
 
 #### Scenario: User runs the default installer
 - **WHEN** no optional capability flags are provided
-- **THEN** lolterm configures terminal, editor, runtime, package, and access basics without adding workstation-like capabilities by default
+- **THEN** lolterm configures terminal, editor, package, and access basics for the Fedora Cloud baseline without implicitly installing optional runtime-manager layers such as mise or user-selected mise-managed global tools
 
 ### Requirement: Workstation-like capabilities are explicit layers
 
@@ -67,3 +64,4 @@ The system SHALL avoid hidden lolterm-owned persisted state for coordinating fut
 #### Scenario: Future behavior depends on user intent
 - **WHEN** lolterm needs to know whether to configure an optional capability
 - **THEN** it uses explicit command invocation, flags, or standard system state rather than remembered intent from a hidden lolterm state file
+

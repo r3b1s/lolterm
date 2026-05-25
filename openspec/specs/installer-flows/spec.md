@@ -1,5 +1,7 @@
-## Requirements
+## Purpose
 
+Define how first-time installer and follow-up command flows compose scoped operations.
+## Requirements
 ### Requirement: First-time provisioning remains the bootstrap entrypoint
 
 The system SHALL keep `install.sh` focused on first-time machine provisioning and bootstrap behavior.
@@ -35,3 +37,15 @@ The system MUST NOT require lolterm-owned persisted state files to coordinate in
 #### Scenario: Idempotence check is required
 - **WHEN** an operation needs to avoid reapplying work unsafely
 - **THEN** it derives that check from standard system state such as packages, files, services, or existing configuration
+
+### Requirement: Optional runtime modules are requested explicitly
+The system SHALL expose optional runtime-manager behavior only through explicit installer flags.
+
+#### Scenario: User requests optional mise module
+- **WHEN** a user passes `--mise` to `install.sh`
+- **THEN** the installer includes the optional mise module in the first-time provisioning flow
+
+#### Scenario: User does not request optional mise module
+- **WHEN** a user does not pass `--mise` to `install.sh`
+- **THEN** first-time provisioning skips the optional mise module entirely
+
