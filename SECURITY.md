@@ -20,7 +20,7 @@ Every package source change must be documented in `README.md` and this file.
 
 `starship` is installed from the `atim/starship` COPR. Trust basis: Fedora COPR maintained by project owners/maintainers. Update command: `sudo dnf upgrade starship`.
 
-`rtk` is installed on x86_64 from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update-tools`.
+`rtk` is installed on x86_64 from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
 
 `mise` is installed from the `jdxcode/mise` COPR documented by mise as the Fedora/RHEL install path. Trust basis: upstream maintainer-owned COPR. Update command: `sudo dnf upgrade mise`.
 
@@ -38,9 +38,17 @@ Tailscale is optional and installed through DNF when selected in `lolterm-setup`
 
 VPN enrollment keys and browser-link authentication can grant broad network access. Use scoped NetBird setup keys, Tailscale tagged auth keys, and restrictive ACLs/groups/policies for server endpoints.
 
-XFCE, XRDP, xorgxrdp, and xrdp-selinux are optional and installed from Fedora DNF packages when `--xfce-desktop --remote-desktop xrdp` or `lolterm-install-desktop` is used. No non-DNF source is added for remote desktop support.
+XFCE is optional and installed from Fedora's `xfce-desktop` package group when `--xfce-desktop` or `lolterm-install-desktop` is used. XRDP, xorgxrdp, and xrdp-selinux are optional and installed from Fedora DNF packages when `--remote-desktop xrdp` or `lolterm-install-desktop` is used. No non-DNF source is added for desktop or remote desktop support.
+
+XRDP is configured for Xorg/xorgxrdp with `autorun=Xorg`, `security_layer=tls`, `ssl_protocols=TLSv1.3`, and no active Xvnc session path. TLSv1.3-only is intentional; clients that cannot negotiate TLSv1.3 should fail closed rather than falling back to weaker security.
+
+XRDP uses Fedora's default package-managed self-signed certificate and key paths unless the user replaces them outside lolterm. Clients should use trust-on-first-use or fingerprint pinning and should not disable certificate verification.
 
 XRDP listens on `3389/tcp` when enabled. The installer leaves the firewall closed by default; `--open-xrdp-firewall` explicitly opens the port with firewalld. Prefer VPN, private-network, security-group allowlist, or SSH-tunneled access instead of direct public internet exposure.
+
+`--enable-host-firewall` is an explicit opt-in for systems that need a host firewall in addition to, or instead of, cloud firewalls/security groups. It enables firewalld with a lolterm-managed deny-by-default inbound zone, allows SSH before applying the firewall, and allows XRDP only when XRDP was explicitly selected. Headless use requires an SSH key or explicit VPN setup/auth key so the host has a declared access path. lolterm does not add NetBird- or Tailscale-specific firewall allowances by default; those rules require service-specific review before implementation.
+
+Deferred XRDP hardening topics are tracked in `CONCERNS.md`, including root login policy, clipboard and device redirection, listen/firewall profiles, certificate lifecycle, TLS compatibility profiles, and client-specific guidance.
 
 ## Removed Or Deferred Sources
 

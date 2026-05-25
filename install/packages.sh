@@ -34,13 +34,9 @@ install_desktop_packages() {
   local xfce_desktop="$1"
   local remote_desktop="$2"
 
-  $xfce_desktop || return 0
-
-  section "Installing XFCE desktop..."
-  sudo dnf group install -y xfce-desktop
+  $xfce_desktop && install_xfce_desktop_packages
 
   if [[ "$remote_desktop" == "xrdp" ]]; then
-    section "Installing XRDP remote desktop..."
-    sudo dnf install -y xrdp xorgxrdp xrdp-selinux
+    install_xrdp_remote_desktop_packages
   fi
 }

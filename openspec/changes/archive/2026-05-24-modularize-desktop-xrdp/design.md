@@ -88,7 +88,7 @@ Alternatives considered:
 
 ### Archive original system configs locally, not in git
 
-The repo should define a gitignored archive path for verbatim copies of freshly installed XRDP config files from a target host. These copies are for local review/reference only and should not be committed, because they are machine-local system artifacts rather than installer source.
+The repo should define a gitignored archive path for verbatim copies of freshly installed XRDP config files from a target host. These copies are for local review/reference only and should not be committed, because they are machine-local system artifacts rather than installer source. Archival of these files should NOT be automated in ANY lolterm code. Relevant files should just be manually copied into the archive by the agent implementing the change. This is not a cardinal rule intended to continue into future development practices.
 
 Alternatives considered:
 - Commit Fedora default config copies: easier to review in git, but risks stale package snapshots becoming mistaken for source of truth.

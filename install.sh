@@ -10,6 +10,7 @@ TAILSCALE_AUTH_KEY=""
 XFCE_DESKTOP=false
 REMOTE_DESKTOP="none"
 OPEN_XRDP_FIREWALL=false
+ENABLE_HOST_FIREWALL=false
 USER_PASSWORD=""
 USER_PASSWORD_FILE=""
 
@@ -31,6 +32,8 @@ Options:
                      Remote desktop mode: xrdp or none
   --open-xrdp-firewall
                      Open 3389/tcp with firewalld when using XRDP
+  --enable-host-firewall
+                     Configure a deny-by-default inbound firewalld host firewall
   --user-password PASSWORD
                      Set the target user's local password non-interactively
                      for headless XRDP logins
@@ -84,6 +87,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --open-xrdp-firewall) OPEN_XRDP_FIREWALL=true; shift ;;
+    --enable-host-firewall) ENABLE_HOST_FIREWALL=true; shift ;;
     --user-password)
       if [[ -z "${2:-}" ]]; then
         echo "Missing value for --user-password" >&2
@@ -117,6 +121,11 @@ fi
 
 if $OPEN_XRDP_FIREWALL && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
   echo "--open-xrdp-firewall requires --remote-desktop xrdp." >&2
+  exit 1
+fi
+
+if $ENABLE_HOST_FIREWALL && $HEADLESS && [[ -z "$SSH_KEY" && -z "$NETBIRD_SETUP_KEY" && -z "$TAILSCALE_AUTH_KEY" ]]; then
+  echo "--enable-host-firewall in --headless mode requires --ssh-key, --netbird-setup-key, or --tailscale-auth-key." >&2
   exit 1
 fi
 
@@ -196,7 +205,8 @@ git clone --depth 1 "$REPO" "$INSTALLER_DIR"
 show_banner
 section "Installing lolterm on Fedora..."
 
-# ---------- Source package installer ----------
+# ---------- Source installer operations ----------
+source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
 
 # ---------- Install packages ----------
@@ -365,73 +375,24 @@ install_bins() {
   cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
   cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-refresh"
   cp -f "$INSTALLER_DIR/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-install-desktop"
-  cp -f "$INSTALLER_DIR/bin/lolterm-update-tools" "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-update-tools"
+  cp -f "$INSTALLER_DIR/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-configure-firewall"
+  cp -f "$INSTALLER_DIR/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-update"
+  rm -f "$TARGET_HOME/.local/bin/lolterm-update-tools"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update"
   echo "  lolterm-setup"
   echo "  lolterm-refresh"
   echo "  lolterm-install-desktop"
-  echo "  lolterm-update-tools"
+  echo "  lolterm-configure-firewall"
+  echo "  lolterm-update"
 }
 install_bins
 
-persist_install_state() {
-  as_user mkdir -p "$TARGET_HOME/.config/lolterm"
-  cat > "$TARGET_HOME/.config/lolterm/install.env" <<EOF
-REMOTE_DESKTOP=$REMOTE_DESKTOP
-XFCE_DESKTOP=$XFCE_DESKTOP
-EOF
-  if [[ $EUID -eq 0 ]]; then
-    chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config/lolterm/install.env"
-  fi
-}
-persist_install_state
-
-# ---------- Optional XFCE remote desktop setup ----------
-setup_xfce_desktop() {
-  $XFCE_DESKTOP || return 0
-
-  section "Configuring XFCE desktop..."
-
-  local xclients="$TARGET_HOME/.Xclients"
-  if [[ ! -e "$xclients" ]] || grep -qF "# ----- lolterm XFCE session -----" "$xclients" 2>/dev/null; then
-    cat > "$xclients" <<'XCLIENTS'
-#!/usr/bin/env bash
-# ----- lolterm XFCE session -----
-exec startxfce4
-# ----- /lolterm XFCE session -----
-XCLIENTS
-    chmod +x "$xclients"
-    if [[ $EUID -eq 0 ]]; then
-      chown "$TARGET_USER:$TARGET_USER" "$xclients"
-    fi
-    echo "  XFCE session -> $xclients"
-  else
-    echo "  Existing $xclients found; leaving it unchanged"
-    echo "  Ensure it starts XFCE for XRDP sessions if needed"
-  fi
-}
-setup_xfce_desktop
-
-open_xrdp_firewall() {
-  $OPEN_XRDP_FIREWALL || return 0
-
-  section "Opening XRDP firewall port..."
-
-  if ! command -v firewall-cmd &>/dev/null; then
-    echo "  firewalld is not installed; skipping 3389/tcp firewall rule"
-    return 0
-  fi
-
-  if ! systemctl is-active --quiet firewalld.service; then
-    echo "  firewalld is not active; skipping 3389/tcp firewall rule"
-    return 0
-  fi
-
-  sudo firewall-cmd --permanent --add-port=3389/tcp
-  sudo firewall-cmd --add-port=3389/tcp
-  echo "  Opened 3389/tcp"
-}
-open_xrdp_firewall
+# ---------- Optional desktop and remote desktop setup ----------
+$XFCE_DESKTOP && configure_xfce_session
+if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
+  configure_xrdp_remote_desktop
+fi
+$OPEN_XRDP_FIREWALL && open_xrdp_firewall_port
 
 # ---------- Fix ownership (in case root created files via cp) ----------
 if [[ $EUID -eq 0 ]]; then
@@ -592,11 +553,14 @@ enable_services() {
   echo "  SSH"
 
   if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
-    sudo systemctl enable --now xrdp.service
-    echo "  XRDP"
+    enable_xrdp_services
   fi
 }
 enable_services
+
+if $ENABLE_HOST_FIREWALL; then
+  configure_host_firewall "$([[ "$REMOTE_DESKTOP" == "xrdp" ]] && echo true || echo false)"
+fi
 
 # ---------- Interactive or headless ----------
 if $HEADLESS; then
