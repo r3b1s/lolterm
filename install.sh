@@ -13,6 +13,8 @@ OPEN_XRDP_FIREWALL=false
 ENABLE_HOST_FIREWALL=false
 USER_PASSWORD=""
 USER_PASSWORD_FILE=""
+MISE=false
+MISE_SELECTORS=""
 
 usage() {
   cat <<'USAGE'
@@ -22,6 +24,8 @@ Options:
   --headless         Skip interactive post-install setup
   --root-config      Install user configs plus optional root configs
   --tmux-autostart   Auto-start tmux for interactive user shells
+  --mise [SELECTORS] Install mise only, or install comma-separated
+                     global mise selectors with pinned versions
   --ssh-key KEY      Add an SSH public key and disable password auth
   --netbird-setup-key KEY
                      Provision NetBird non-interactively
@@ -50,6 +54,15 @@ while [[ $# -gt 0 ]]; do
     --headless) HEADLESS=true; shift ;;
     --root-config) ROOT_CONFIG=true; shift ;;
     --tmux-autostart) TMUX_AUTOSTART=true; shift ;;
+    --mise)
+      MISE=true
+      if [[ -n "${2:-}" && "${2:0:1}" != "-" ]]; then
+        MISE_SELECTORS="$2"
+        shift 2
+      else
+        shift
+      fi
+      ;;
     --ssh-key)
       if [[ -z "${2:-}" ]]; then
         echo "Missing value for --ssh-key" >&2
@@ -208,6 +221,7 @@ section "Installing lolterm on Fedora..."
 # ---------- Source installer operations ----------
 source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
+source "$INSTALLER_DIR/install/mise.sh"
 
 # ---------- Install packages ----------
 install_packages
@@ -226,17 +240,10 @@ configure_user_shell() {
 }
 configure_user_shell
 
-# ---------- Install mise runtimes ----------
-install_mise_tools() {
-  section "Installing runtimes via mise..."
-  eval "$(mise activate bash)" 2>/dev/null || true
-  as_user mise use -g node@lts
-  as_user corepack enable pnpm
-  as_user corepack prepare pnpm@latest --activate
-  as_user mise use -g python
-  export PATH="$TARGET_HOME/.local/share/mise/shims:$PATH"
-}
-install_mise_tools
+# ---------- Optional mise runtime module ----------
+if $MISE; then
+  install_mise_module "$MISE_SELECTORS"
+fi
 
 # ---------- Install rtk ----------
 install_rtk() {
@@ -373,14 +380,12 @@ install_bins() {
   section "Installing helper scripts..."
   as_user mkdir -p "$TARGET_HOME/.local/bin"
   cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
-  cp -f "$INSTALLER_DIR/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-refresh"
   cp -f "$INSTALLER_DIR/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-install-desktop"
   cp -f "$INSTALLER_DIR/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-configure-firewall"
   cp -f "$INSTALLER_DIR/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-update"
   rm -f "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-refresh" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update"
   echo "  lolterm-setup"
-  echo "  lolterm-refresh"
   echo "  lolterm-install-desktop"
   echo "  lolterm-configure-firewall"
   echo "  lolterm-update"

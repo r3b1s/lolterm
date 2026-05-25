@@ -22,11 +22,9 @@ Every package source change must be documented in `README.md` and this file.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
 
-`mise` is installed from the `jdxcode/mise` COPR documented by mise as the Fedora/RHEL install path. Trust basis: upstream maintainer-owned COPR. Update command: `sudo dnf upgrade mise`.
+`mise` is optional and installed only when `--mise` is selected, from the `jdxcode/mise` COPR documented by mise as the Fedora/RHEL install path. Trust basis: upstream maintainer-owned COPR. Update command: `sudo dnf upgrade mise`.
 
-`node` and `python` are installed by mise. Trust basis: mise runtime management. Update command: `mise upgrade`.
-
-`pnpm` is enabled through Node's Corepack and prepared from the Corepack-managed pnpm release metadata. Trust basis: Node/Corepack package-manager distribution. Update command: `corepack prepare pnpm@latest --activate`.
+User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are optional and installed by mise only when requested with `--mise` selectors. The installer pins resolved global versions with `mise use --pin -g <selector>`. Trust basis: user-requested mise runtime management. Update command: user-managed `mise upgrade` or explicit `mise use --pin -g <selector>` changes after provisioning.
 
 LazyVim is installed by cloning the official LazyVim starter repository. Trust basis: upstream documented starter repository. Updates are handled by Neovim/LazyVim plugin tooling after installation.
 

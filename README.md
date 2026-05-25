@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, mise-managed Node and Python, Rust from Fedora packages, optional XFCE desktop and XRDP remote desktop access, and optional root shell configuration.
+Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, Rust from Fedora packages, optional mise-managed runtimes, optional XFCE desktop and XRDP remote desktop access, and optional root shell configuration.
 
 ## Quick Start
 
@@ -53,6 +53,8 @@ Log out and back in when installation completes.
 
 `--tmux-autostart`: Add an interactive-shell-only tmux autostart block.
 
+`--mise [SELECTORS]`: Install mise as an optional runtime manager. With no selector list, only mise is installed. With a comma-separated selector list such as `node@lts,pnpm,bun,python`, each selector is installed globally through mise and pinned at the resolved version.
+
 `--xfce-desktop`: Install the XFCE desktop environment.
 
 `--remote-desktop xrdp|none`: Select remote desktop mode. `xrdp` installs and enables XRDP for RDP clients.
@@ -69,7 +71,7 @@ Log out and back in when installation completes.
 
 ## What You Get
 
-**Languages**: Node and Python via mise. Rust and Cargo via Fedora packages.
+**Languages**: Rust and Cargo via Fedora packages. Optional user-scoped runtimes such as Node, pnpm, bun, and Python can be installed through `--mise`.
 
 **Terminal**: tmux, starship, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
 
@@ -121,10 +123,11 @@ eza
 gum
 rust
 cargo
-mise
-node
-pnpm
-python
+mise optional with --mise
+node optional with --mise selector
+pnpm optional with --mise selector
+bun optional with --mise selector
+python optional with --mise selector
 starship
 rtk
 LazyVim starter
@@ -142,13 +145,13 @@ firewalld optional with --enable-host-firewall
 
 Fedora DNF packages are preferred whenever available.
 
-`mise` is installed through the upstream-maintainer COPR documented by mise for Fedora/RHEL.
+`mise` is installed only when `--mise` is selected, through the upstream-maintainer COPR documented by mise for Fedora/RHEL.
 
 `starship` is installed from the `atim/starship` COPR.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM after SHA-256 verification.
 
-`node` and `python` are installed and managed by mise. `pnpm` is enabled as the default Node package manager through Node's Corepack.
+User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are installed only when requested through `--mise` selectors. The installer runs `mise use --pin -g <selector>` so resolved global versions are pinned at provisioning time. Future runtime changes are owned by the user through mise.
 
 LazyVim is installed from the official LazyVim starter repository.
 
@@ -214,11 +217,7 @@ In headless installs, `--enable-host-firewall` requires an explicit access path:
 
 ## Updating
 
-Refresh the lolterm installer and configs:
-
-```bash
-lolterm-refresh
-```
+lolterm is intended as run-once bootstrap for fresh, ephemeral environments. It does not ship a helper to fetch newer lolterm sources and replay the full installer on an existing host.
 
 Update Fedora-managed packages and lolterm-managed non-DNF tools (currently RTK):
 
@@ -228,7 +227,7 @@ lolterm-update
 
 Pass `-y` or `--yes` to let the DNF upgrade run non-interactively.
 
-Update mise-managed runtimes:
+If you opted into mise, update mise-managed runtimes explicitly:
 
 ```bash
 mise upgrade
@@ -321,7 +320,6 @@ config/shell/aliases               shell aliases
 config/shell/tmux_fns              tdl, tdlm, tsl
 config/nvim/lua/config/            LazyVim overrides
 bin/lolterm-setup                  interactive post-install config
-bin/lolterm-refresh                re-runs the installer without remote shell piping
 bin/lolterm-install-desktop        installs optional XFCE/XRDP desktop later
 bin/lolterm-configure-firewall     configures the optional host firewall later
 bin/lolterm-update                 updates DNF packages and lolterm-managed non-DNF tools
@@ -329,4 +327,4 @@ bin/lolterm-update                 updates DNF packages and lolterm-managed non-
 
 ## Requirements
 
-Fedora 44, sudo, internet access, and enough disk space for development tools and language runtimes.
+Fedora 44, sudo, internet access, and enough disk space for development tools and any optional runtimes you request.

@@ -22,12 +22,6 @@ install_packages() {
     sudo dnf install -y starship
   fi
 
-  # mise: upstream maintainer-owned COPR documented by mise for Fedora/RHEL.
-  if ! command -v mise &>/dev/null; then
-    section "Installing mise..."
-    sudo dnf copr enable -y jdxcode/mise
-    sudo dnf install -y mise
-  fi
 }
 
 install_desktop_packages() {

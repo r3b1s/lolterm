@@ -12,7 +12,7 @@ Download remote release artifacts to a temporary directory and verify checksums 
 
 `lolterm-setup` is for interactive post-install configuration.
 
-`lolterm-refresh` reruns the installer by cloning the repository and executing the checked-out installer locally.
+Do not add helper scripts that rerun the full bootstrap installer on an existing environment.
 
 `lolterm-configure-firewall` configures the optional firewalld host firewall.
 
