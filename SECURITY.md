@@ -20,6 +20,8 @@ Every package source change must be documented in `README.md` and this file.
 
 `starship` is installed from the `atim/starship` COPR. Trust basis: Fedora COPR maintained by project owners/maintainers. Update command: `sudo dnf upgrade starship`.
 
+`act-cli` is installed from the `goncalossilva/act` COPR documented by the upstream act project for Fedora/RHEL. Trust basis: upstream-documented COPR package source for act. Update command: `sudo dnf upgrade act-cli`.
+
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
 
 `mise` is optional and installed only when `--mise` is selected, from the `jdxcode/mise` COPR documented by mise as the Fedora/RHEL install path. Trust basis: upstream maintainer-owned COPR. Update command: `sudo dnf upgrade mise`.
@@ -47,6 +49,12 @@ XRDP listens on `3389/tcp` when enabled. The installer leaves the firewall close
 `--enable-host-firewall` is an explicit opt-in for systems that need a host firewall in addition to, or instead of, cloud firewalls/security groups. It enables firewalld with a lolterm-managed deny-by-default inbound zone, allows SSH before applying the firewall, and allows XRDP only when XRDP was explicitly selected. Headless use requires an SSH key or explicit VPN setup/auth key so the host has a declared access path. lolterm does not add NetBird- or Tailscale-specific firewall allowances by default; those rules require service-specific review before implementation.
 
 Deferred XRDP hardening topics are tracked in `CONCERNS.md`, including root login policy, clipboard and device redirection, listen/firewall profiles, certificate lifecycle, TLS compatibility profiles, and client-specific guidance.
+
+## CI Source Behavior
+
+The default installer clones `https://github.com/r3b1s/lolterm.git` into a temporary directory. CI smoke tests set `LOLTERM_INSTALLER_DIR=/workspace` so the installer sources the checked-out repository mounted into the Fedora 44 smoke container instead. This override is intended for repository validation and does not fetch or execute additional remote code.
+
+Smoke tests run in privileged Fedora 44 systemd containers created by `ci/smoke/run.sh`. The initial smoke layer validates package, file, user, mise, SSH, and XRDP service behavior; it intentionally excludes VPN provisioning and host firewall behavior because those need higher-fidelity host/network validation. The desktop smoke lane installs a container-only `udevadm` no-op shim before package installation so Fedora desktop package scriptlets do not fail while trying to trigger host-backed `/sys` uevents from inside the container.
 
 ## Removed Or Deferred Sources
 

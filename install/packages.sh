@@ -15,6 +15,13 @@ install_packages() {
     gh \
     bat eza gum rust cargo
 
+  # act, installed from the upstream-documented goncalossilva/act COPR.
+  if ! rpm -q act-cli &>/dev/null; then
+    section "Installing act..."
+    sudo dnf copr enable -y goncalossilva/act
+    sudo dnf install -y act-cli
+  fi
+
   # Starship prompt, installed from the atim/starship COPR.
   if ! rpm -q starship &>/dev/null; then
     section "Installing starship..."

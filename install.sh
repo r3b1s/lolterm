@@ -210,10 +210,14 @@ if ! command -v git &>/dev/null; then
 fi
 
 # ---------- Clone repo to temp dir ----------
-REPO="https://github.com/r3b1s/lolterm.git"
-INSTALLER_DIR="$(mktemp -d)"
-trap 'rm -rf "$INSTALLER_DIR"' EXIT
-git clone --depth 1 "$REPO" "$INSTALLER_DIR"
+REPO="${LOLTERM_REPO_URL:-https://github.com/r3b1s/lolterm.git}"
+if [[ -n "${LOLTERM_INSTALLER_DIR:-}" ]]; then
+  INSTALLER_DIR="$LOLTERM_INSTALLER_DIR"
+else
+  INSTALLER_DIR="$(mktemp -d)"
+  trap 'rm -rf "$INSTALLER_DIR"' EXIT
+  git clone --depth 1 "$REPO" "$INSTALLER_DIR"
+fi
 
 show_banner
 section "Installing lolterm on Fedora..."

@@ -1,0 +1,35 @@
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lolterm-smoke:
+    name: ${{ matrix.flavor }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [base, mise, mise-tools, desktop]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Ensure Podman is available
+        run: |
+          if command -v podman >/dev/null 2>&1; then
+            exit 0
+          fi
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y podman
+          elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y podman
+          else
+            echo "Podman is required for lolterm smoke tests" >&2
+            exit 1
+          fi
+      - name: Run Fedora 44 systemd smoke
+        run: ci/smoke/run.sh "${{ matrix.flavor }}"

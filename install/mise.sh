@@ -11,6 +11,8 @@ install_mise_module() {
   fi
 
   export PATH="$TARGET_HOME/.local/share/mise/shims:$PATH"
+  as_user mkdir -p "$TARGET_HOME/.config/mise"
+  as_user touch "$TARGET_HOME/.config/mise/config.toml"
 
   if [[ -z "$selectors_csv" ]]; then
     section "Mise installed without global tools"

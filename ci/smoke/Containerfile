@@ -1,0 +1,20 @@
+FROM registry.fedoraproject.org/fedora-minimal:44
+
+ENV container=oci
+
+RUN dnf -y install \
+      systemd \
+      sudo \
+      git \
+      passwd \
+      shadow-utils \
+      util-linux \
+      procps-ng \
+      findutils \
+      tar \
+      gzip \
+      xz \
+    && dnf clean all
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

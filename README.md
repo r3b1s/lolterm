@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, Rust from Fedora packages, optional mise-managed runtimes, optional XFCE desktop and XRDP remote desktop access, and optional root shell configuration.
+Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, local CI workflow testing with `act`, Neovim/LazyVim, Rust from Fedora packages, optional mise-managed runtimes, optional XFCE desktop and XRDP remote desktop access, and optional root shell configuration.
 
 ## Quick Start
 
@@ -73,7 +73,7 @@ Log out and back in when installation completes.
 
 **Languages**: Rust and Cargo via Fedora packages. Optional user-scoped runtimes such as Node, pnpm, bun, and Python can be installed through `--mise`.
 
-**Terminal**: tmux, starship, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
+**Terminal**: tmux, starship, act, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
 
 **Editor**: Neovim with LazyVim. Cursor stays centered while navigating.
 
@@ -123,6 +123,7 @@ eza
 gum
 rust
 cargo
+act-cli
 mise optional with --mise
 node optional with --mise selector
 pnpm optional with --mise selector
@@ -148,6 +149,8 @@ Fedora DNF packages are preferred whenever available.
 `mise` is installed only when `--mise` is selected, through the upstream-maintainer COPR documented by mise for Fedora/RHEL.
 
 `starship` is installed from the `atim/starship` COPR.
+
+`act-cli` is installed from the upstream-documented `goncalossilva/act` COPR and provides the `act` command.
 
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM after SHA-256 verification.
 
@@ -214,6 +217,30 @@ By default, lolterm preserves Fedora Cloud's baseline network posture and does n
 For hosts without an external firewall, pass `--enable-host-firewall` during install or run `lolterm-configure-firewall` later. This enables firewalld with a `lolterm` zone, deny-by-default inbound behavior, and SSH allowed before the firewall is applied. XRDP is allowed only when XRDP was explicitly requested during install, or when `lolterm-configure-firewall --allow-xrdp` is used later.
 
 In headless installs, `--enable-host-firewall` requires an explicit access path: `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`. lolterm does not currently add VPN-specific firewall allowances; NetBird and Tailscale firewall behavior should be reviewed before adding such rules.
+
+## CI Smoke Tests
+
+The canonical smoke workflow lives at `.forgejo/workflows/smoke.yml` and runs four Fedora 44 systemd-container flavors: base, mise-only, mise with selected tools, and desktop/XRDP. VPN provisioning and host firewall assertions are intentionally out of scope for this first smoke layer.
+
+Run one smoke flavor directly with Podman:
+
+```bash
+ci/smoke/run.sh base
+ci/smoke/run.sh mise
+ci/smoke/run.sh mise-tools
+ci/smoke/run.sh desktop
+```
+
+Run the Forgejo workflow locally with `act` by pointing it at the Forgejo workflow path. The smoke jobs create nested privileged systemd containers, so the local runner must have Podman and allow privileged containers. For a Podman-backed `act` run:
+
+```bash
+systemctl --user enable --now podman.socket
+act -W .forgejo/workflows/smoke.yml \
+  --container-daemon-socket "unix://$XDG_RUNTIME_DIR/podman/podman.sock" \
+  --container-options --privileged
+```
+
+The smoke helper sets `LOLTERM_INSTALLER_DIR=/workspace` so CI validates the checked-out repository instead of cloning the default upstream source. The desktop lane also installs a container-only `udevadm` no-op shim before package installation because some Fedora desktop package scriptlets try to trigger host-backed `/sys` uevents that are not writable from the smoke container.
 
 ## Updating
 
@@ -311,6 +338,9 @@ Review NetBird and Tailscale access controls before authenticating a server. Bro
 ```text
 install.sh                         entry point
 install/packages.sh                Fedora packages and approved external installs
+ci/smoke/run.sh                    Fedora 44 systemd-container smoke runner
+ci/smoke/Containerfile             Smoke-test container image
+.forgejo/workflows/smoke.yml       Forgejo/act smoke workflow
 config/starship.toml               user prompt
 config/root/starship.toml          optional root prompt
 config/root/shell/bash/appendrc    optional root bash block
