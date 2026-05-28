@@ -11,14 +11,14 @@ XRDP_PASSWORD="lolterm-smoke-password"
 
 usage() {
   cat <<'USAGE'
-Usage: ci/smoke/run.sh base|mise|mise-tools|desktop
+Usage: ci/smoke/run.sh base|mise|mise-tools|desktop|kali-container
 
 Runs one lolterm smoke flavor inside a Fedora 44 systemd-enabled Podman container.
 USAGE
 }
 
 case "$FLAVOR" in
-  base|mise|mise-tools|desktop) ;;
+  base|mise|mise-tools|desktop|kali-container) ;;
   -h|--help|"") usage; exit 0 ;;
   *) echo "Unknown smoke flavor: $FLAVOR" >&2; usage >&2; exit 1 ;;
 esac
@@ -78,6 +78,68 @@ assert_command_for_user() {
 
 assert_rpm() {
   run_in_container rpm -q "$1" >/dev/null
+}
+
+install_container_kali_deps() {
+  # Rootless Podman inside the privileged smoke container needs:
+  # - subuid/subgid mappings for the tester user
+  # - newuidmap/newgidmap setuid for user namespace mapping
+  # - XDG_RUNTIME_DIR for user systemd
+  local uid
+  uid="$(run_in_container id -u "$TEST_USER")"
+  run_in_container bash -c "echo '$TEST_USER:100000:65536' >> /etc/subuid"
+  run_in_container bash -c "echo '$TEST_USER:100000:65536' >> /etc/subgid"
+  run_in_container bash -c "chmod u+s /usr/bin/newuidmap; chmod u+s /usr/bin/newgidmap"
+  run_in_container mkdir -p "/run/user/$uid"
+  run_in_container chown "$TEST_USER" "/run/user/$uid"
+  run_in_container loginctl enable-linger "$TEST_USER" 2>/dev/null || true
+}
+
+kali_container_assertions() {
+  local state_dir="/home/$TEST_USER/.local/share/lolterm/kali-container"
+
+  # Podman was installed
+  assert_rpm podman
+
+  # Config files exist in state dir
+  assert_path "$state_dir/Containerfile"
+  assert_path "$state_dir/packages.txt"
+  assert_path "$state_dir/tools.txt"
+  assert_path "$state_dir/tools-privileged.txt"
+
+  # Wrapper scripts exist and are executable
+  assert_executable "/home/$TEST_USER/.local/bin/nmap"
+  assert_executable "/home/$TEST_USER/.local/bin/hydra"
+  assert_executable "/home/$TEST_USER/.local/bin/aircrack-ng"
+  assert_executable "/home/$TEST_USER/.local/bin/msfconsole"
+
+  # kali() and kali-sh() in bashrc
+  assert_file_contains "/home/$TEST_USER/.bashrc" "# ----- lolterm kali container -----"
+  assert_file_contains "/home/$TEST_USER/.bashrc" "kali() {"
+  assert_file_contains "/home/$TEST_USER/.bashrc" "kali-sh() {"
+
+  # lolterm-kali image was built (rootful podman since we run in nested container)
+  run_in_container podman image exists lolterm-kali
+
+  # Kali container was created
+  run_in_container podman container exists kali
+
+  # Container is running
+  run_in_container podman start kali 2>/dev/null || true
+  run_in_container bash -lc "podman ps --filter name=kali --filter status=running --format '{{.Names}}' | grep -qxF kali"
+
+  # Can exec a tool in the container (rootful exec since rootful podman)
+  local version
+  version="$(run_in_container bash -lc "podman exec kali nmap --version 2>/dev/null | head -1")"
+  [[ -n "$version" ]] || { echo "FAIL: nmap --version failed in container" >&2; exit 1; }
+  echo "  nmap in container: $version"
+
+  # Wrapper scripts invoke tools via podman exec
+  run_as_user bash -lc "/home/$TEST_USER/.local/bin/nmap --version 2>/dev/null | head -1" || {
+    echo "FAIL: wrapper script nmap not working" >&2
+    exit 1
+  }
+  echo "  wrapper script nmap works"
 }
 
 install_container_udevadm_shim() {
@@ -190,6 +252,20 @@ case "$FLAVOR" in
     base_assertions
     ssh_assertions
     desktop_assertions
+    ;;
+  kali-container)
+    install_container_kali_deps
+    # Remove any stale artifacts from previous runs
+    run_in_container podman image rm -f lolterm-kali 2>/dev/null || true
+    run_in_container podman rm -f kali 2>/dev/null || true
+    run_in_container rm -rf "/home/$TEST_USER/.local/share/lolterm" 2>/dev/null || true
+    run_in_container rm -f "/home/$TEST_USER/.local/bin/nmap" 2>/dev/null || true
+    run_in_container rm -rf "/home/$TEST_USER/.config/shell" 2>/dev/null || true
+    # Run the installer once (image build is cached after first success)
+    run_in_container env SUDO_USER="$TEST_USER" HOME="/home/$TEST_USER" \
+      bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --kali-container"
+    base_assertions
+    kali_container_assertions
     ;;
 esac
 
