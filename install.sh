@@ -16,6 +16,7 @@ USER_PASSWORD_FILE=""
 MISE=false
 MISE_SELECTORS=""
 KALI_CONTAINER=false
+CLAUDE=false
 
 usage() {
   cat <<'USAGE'
@@ -45,6 +46,7 @@ Options:
   --user-password-file FILE
                      Read the target user's local password from FILE for
                      headless XRDP logins
+  --claude            Install Claude Code from the Anthropic DNF repository
   --kali-container    Install Kali Linux Podman container with security tools
   --help             Show this help
 USAGE
@@ -119,6 +121,7 @@ while [[ $# -gt 0 ]]; do
       USER_PASSWORD_FILE="$2"
       shift 2
       ;;
+    --claude) CLAUDE=true; shift ;;
     --kali-container) KALI_CONTAINER=true; shift ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -230,6 +233,7 @@ source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
 source "$INSTALLER_DIR/install/mise.sh"
 source "$INSTALLER_DIR/install/kali-container.sh"
+source "$INSTALLER_DIR/install/ai.sh"
 
 # ---------- Install packages ----------
 install_packages
@@ -254,6 +258,10 @@ if $MISE; then
 fi
 
 # ---------- Optional Kali container module ----------
+if $CLAUDE; then
+  install_ai_module
+fi
+
 if $KALI_CONTAINER; then
   install_kali_container
 fi
