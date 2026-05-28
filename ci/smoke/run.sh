@@ -8,20 +8,28 @@ CONTAINER="lolterm-smoke-${FLAVOR:-unknown}-$$"
 TEST_USER="tester"
 SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILoltermSmokeTestKey000000000000000000000000000000 smoke@example.invalid"
 XRDP_PASSWORD="lolterm-smoke-password"
+TEST_DIR="$(dirname "$(readlink -f "$0")")/tests"
 
 usage() {
-  cat <<'USAGE'
-Usage: ci/smoke/run.sh base|mise|mise-tools|desktop|kali-container
-
-Runs one lolterm smoke flavor inside a Fedora 44 systemd-enabled Podman container.
-USAGE
+  echo "Usage: $(basename "$0") <flavor>"
+  echo
+  echo "Available flavors:"
+  for f in "$TEST_DIR"/*.sh; do
+    name="$(basename "$f" .sh)"
+    echo "  $name"
+  done
 }
 
-case "$FLAVOR" in
-  base|mise|mise-tools|desktop|kali-container) ;;
-  -h|--help|"") usage; exit 0 ;;
-  *) echo "Unknown smoke flavor: $FLAVOR" >&2; usage >&2; exit 1 ;;
-esac
+# Validate flavor by checking for a matching test file
+FLAVOR_FILE="$TEST_DIR/${FLAVOR}.sh"
+if [[ -z "$FLAVOR" ]]; then
+  usage
+  exit 0
+elif [[ ! -f "$FLAVOR_FILE" ]]; then
+  echo "Unknown smoke flavor: $FLAVOR" >&2
+  usage >&2
+  exit 1
+fi
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -81,10 +89,8 @@ assert_rpm() {
 }
 
 install_container_kali_deps() {
-  # Rootless Podman inside the privileged smoke container needs:
-  # - subuid/subgid mappings for the tester user
-  # - newuidmap/newgidmap setuid for user namespace mapping
-  # - XDG_RUNTIME_DIR for user systemd
+  # Rootless Podman inside the privileged smoke container needs subuid/subgid
+  # mappings and setuid helpers for user namespace isolation.
   local uid
   uid="$(run_in_container id -u "$TEST_USER")"
   run_in_container bash -c "echo '$TEST_USER:100000:65536' >> /etc/subuid"
@@ -95,118 +101,10 @@ install_container_kali_deps() {
   run_in_container loginctl enable-linger "$TEST_USER" 2>/dev/null || true
 }
 
-kali_container_assertions() {
-  local state_dir="/home/$TEST_USER/.local/share/lolterm/kali-container"
-
-  # Podman was installed
-  assert_rpm podman
-
-  # Config files exist in state dir
-  assert_path "$state_dir/Containerfile"
-  assert_path "$state_dir/packages.txt"
-  assert_path "$state_dir/tools.txt"
-  assert_path "$state_dir/tools-privileged.txt"
-
-  # Wrapper scripts exist and are executable
-  assert_executable "/home/$TEST_USER/.local/bin/nmap"
-  assert_executable "/home/$TEST_USER/.local/bin/hydra"
-  assert_executable "/home/$TEST_USER/.local/bin/aircrack-ng"
-  assert_executable "/home/$TEST_USER/.local/bin/msfconsole"
-
-  # kali() and kali-sh() in bashrc
-  assert_file_contains "/home/$TEST_USER/.bashrc" "# ----- lolterm kali container -----"
-  assert_file_contains "/home/$TEST_USER/.bashrc" "kali() {"
-  assert_file_contains "/home/$TEST_USER/.bashrc" "kali-sh() {"
-
-  # lolterm-kali image was built (rootful podman since we run in nested container)
-  run_in_container podman image exists lolterm-kali
-
-  # Kali container was created
-  run_in_container podman container exists kali
-
-  # Container is running
-  run_in_container podman start kali 2>/dev/null || true
-  run_in_container bash -lc "podman ps --filter name=kali --filter status=running --format '{{.Names}}' | grep -qxF kali"
-
-  # Can exec a tool in the container (rootful exec since rootful podman)
-  local version
-  version="$(run_in_container bash -lc "podman exec kali nmap --version 2>/dev/null | head -1")"
-  [[ -n "$version" ]] || { echo "FAIL: nmap --version failed in container" >&2; exit 1; }
-  echo "  nmap in container: $version"
-
-  # Wrapper scripts invoke tools via podman exec
-  run_as_user bash -lc "/home/$TEST_USER/.local/bin/nmap --version 2>/dev/null | head -1" || {
-    echo "FAIL: wrapper script nmap not working" >&2
-    exit 1
-  }
-  echo "  wrapper script nmap works"
-}
-
 install_container_udevadm_shim() {
   # Some desktop package scriptlets call `udevadm trigger`, which tries to
   # write host-backed /sys uevent files and fails in the smoke container.
-  # The smoke assertions cover installed artifacts and services directly, so
-  # make udev-trigger scriptlets a no-op for this container-only desktop lane.
   run_in_container bash -lc 'if [[ -x /usr/bin/udevadm && ! -e /usr/bin/udevadm.lolterm-smoke ]]; then mv /usr/bin/udevadm /usr/bin/udevadm.lolterm-smoke; printf "#!/usr/bin/env bash\nexit 0\n" >/usr/bin/udevadm; chmod +x /usr/bin/udevadm; fi'
-}
-
-base_assertions() {
-  assert_rpm git
-  assert_rpm tmux
-  assert_rpm neovim
-  assert_rpm act-cli
-  assert_command_for_user act
-  assert_path "/home/$TEST_USER/.config/tmux/tmux.conf"
-  assert_path "/home/$TEST_USER/.config/starship.toml"
-  assert_path "/home/$TEST_USER/.local/bin/lolterm-setup"
-  assert_executable "/home/$TEST_USER/.local/bin/lolterm-update"
-  assert_file_contains "/home/$TEST_USER/.bashrc" "# ----- lolterm shell config -----"
-}
-
-ssh_assertions() {
-  assert_file_contains "/home/$TEST_USER/.ssh/authorized_keys" "$SSH_KEY"
-  assert_file_contains /etc/ssh/sshd_config "PasswordAuthentication no"
-  run_in_container systemctl is-active --quiet sshd.service
-}
-
-root_config_assertions() {
-  assert_path /root/.config/starship.toml
-  assert_path /root/.inputrc
-  assert_file_contains /root/.bashrc "# ----- lolterm root shell config -----"
-}
-
-tmux_autostart_assertions() {
-  assert_file_contains "/home/$TEST_USER/.bashrc" "# ----- lolterm tmux autostart -----"
-  assert_file_contains "/home/$TEST_USER/.bashrc" '[[ $- == *i* ]]'
-}
-
-mise_assertions() {
-  assert_rpm mise
-  assert_command_for_user mise
-  assert_path "/home/$TEST_USER/.config/mise/config.toml"
-}
-
-mise_tool_assertions() {
-  mise_assertions
-  assert_command_for_user node
-  assert_command_for_user pnpm
-  assert_command_for_user bun
-  assert_command_for_user python
-  assert_file_contains "/home/$TEST_USER/.config/mise/config.toml" "node"
-  assert_file_contains "/home/$TEST_USER/.config/mise/config.toml" "pnpm"
-  assert_file_contains "/home/$TEST_USER/.config/mise/config.toml" "bun"
-  assert_file_contains "/home/$TEST_USER/.config/mise/config.toml" "python"
-}
-
-desktop_assertions() {
-  assert_rpm xrdp
-  assert_rpm xorgxrdp
-  assert_rpm xrdp-selinux
-  assert_file_contains "/home/$TEST_USER/.Xclients" "exec startxfce4"
-  assert_file_contains /etc/xrdp/xrdp.ini "autorun=Xorg"
-  assert_file_contains /etc/xrdp/xrdp.ini "security_layer=tls"
-  assert_file_contains /etc/xrdp/xrdp.ini "ssl_protocols=TLSv1.3"
-  run_in_container systemctl is-active --quiet xrdp.service
 }
 
 need podman
@@ -228,45 +126,8 @@ wait_for_systemd
 run_in_container useradd -m -G wheel "$TEST_USER"
 run_in_container bash -lc "printf '%s\n' '%wheel ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/lolterm-smoke && chmod 0440 /etc/sudoers.d/lolterm-smoke"
 
-case "$FLAVOR" in
-  base)
-    run_as_user bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --root-config --tmux-autostart --ssh-key '$SSH_KEY'"
-    base_assertions
-    ssh_assertions
-    root_config_assertions
-    tmux_autostart_assertions
-    ;;
-  mise)
-    run_as_user bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --mise"
-    base_assertions
-    mise_assertions
-    ;;
-  mise-tools)
-    run_as_user bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --mise node@lts,pnpm,bun,python"
-    base_assertions
-    mise_tool_assertions
-    ;;
-  desktop)
-    install_container_udevadm_shim
-    run_as_user bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --ssh-key '$SSH_KEY' --xfce-desktop --remote-desktop xrdp --user-password '$XRDP_PASSWORD'"
-    base_assertions
-    ssh_assertions
-    desktop_assertions
-    ;;
-  kali-container)
-    install_container_kali_deps
-    # Remove any stale artifacts from previous runs
-    run_in_container podman image rm -f lolterm-kali 2>/dev/null || true
-    run_in_container podman rm -f kali 2>/dev/null || true
-    run_in_container rm -rf "/home/$TEST_USER/.local/share/lolterm" 2>/dev/null || true
-    run_in_container rm -f "/home/$TEST_USER/.local/bin/nmap" 2>/dev/null || true
-    run_in_container rm -rf "/home/$TEST_USER/.config/shell" 2>/dev/null || true
-    # Run the installer once (image build is cached after first success)
-    run_in_container env SUDO_USER="$TEST_USER" HOME="/home/$TEST_USER" \
-      bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --kali-container"
-    base_assertions
-    kali_container_assertions
-    ;;
-esac
+# Source and run the flavor-specific test
+source "$FLAVOR_FILE"
+run_test
 
 echo "lolterm $FLAVOR smoke passed"
