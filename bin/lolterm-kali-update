@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Update Kali container packages
+# Runs apt-get update && apt-get upgrade inside the running container.
+
+if ! podman container exists kali &>/dev/null; then
+  echo "Kali container does not exist. Nothing to update." >&2
+  exit 1
+fi
+
+if ! podman ps --filter name=kali --filter status=running --format '{{.Names}}' | grep -qxF kali; then
+  echo "Starting Kali container..."
+  podman start kali
+fi
+
+echo "==> Updating Kali container packages..."
+podman exec kali apt-get update
+podman exec kali apt-get upgrade -y
+podman exec kali apt-get autoremove -y
+podman exec kali apt-get clean
+
+echo "Done. Kali container packages are up to date."

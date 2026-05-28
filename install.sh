@@ -15,6 +15,7 @@ USER_PASSWORD=""
 USER_PASSWORD_FILE=""
 MISE=false
 MISE_SELECTORS=""
+KALI_CONTAINER=false
 
 usage() {
   cat <<'USAGE'
@@ -44,6 +45,7 @@ Options:
   --user-password-file FILE
                      Read the target user's local password from FILE for
                      headless XRDP logins
+  --kali-container    Install Kali Linux Podman container with security tools
   --help             Show this help
 USAGE
 }
@@ -117,6 +119,7 @@ while [[ $# -gt 0 ]]; do
       USER_PASSWORD_FILE="$2"
       shift 2
       ;;
+    --kali-container) KALI_CONTAINER=true; shift ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -226,6 +229,7 @@ section "Installing lolterm on Fedora..."
 source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
 source "$INSTALLER_DIR/install/mise.sh"
+source "$INSTALLER_DIR/install/kali-container.sh"
 
 # ---------- Install packages ----------
 install_packages
@@ -247,6 +251,11 @@ configure_user_shell
 # ---------- Optional mise runtime module ----------
 if $MISE; then
   install_mise_module "$MISE_SELECTORS"
+fi
+
+# ---------- Optional Kali container module ----------
+if $KALI_CONTAINER; then
+  install_kali_container
 fi
 
 # ---------- Install rtk ----------

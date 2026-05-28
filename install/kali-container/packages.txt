@@ -1,0 +1,163 @@
+# lolterm Kali container — curated package list
+# One Kali/apt package per line. Comments and blank lines are ignored.
+# Edit this file and run 'lolterm-kali-rebuild' to add or remove packages.
+
+# ── Scanning ──
+nmap
+masscan
+zmap
+arp-scan
+fping
+hping3
+
+# ── Wireless ──
+aircrack-ng
+kismet
+reaver
+wifite
+macchanger
+iw
+hostapd
+mdk3
+
+# ── Web & Vulnerability ──
+gobuster
+ffuf
+wfuzz
+nikto
+sqlmap
+wafw00f
+whatweb
+dirb
+wapiti
+skipfish
+joomscan
+cadaver
+
+# ── Password & Cracking ──
+john
+hashcat
+hydra
+medusa
+ncrack
+ophcrack
+crunch
+cewl
+rsmangler
+maskprocessor
+statsprocessor
+hashid
+hash-identifier
+pipal
+fcrackzip
+pdfcrack
+
+# ── Exploitation ──
+metasploit-framework
+set
+weevely
+shellnoob
+termineter
+
+# ── OSINT & Reconnaissance ──
+dnsenum
+dnsrecon
+theharvester
+sherlock
+sublist3r
+recon-ng
+spiderfoot
+fierce
+amass
+enum4linux
+nbtscan
+smbmap
+onesixtyone
+ike-scan
+snmpcheck
+lbd
+dmitry
+maltego
+
+# ── Sniffing, Spoofing & MITM ──
+tcpdump
+tshark
+wireshark
+dsniff
+ettercap-text-only
+bettercap
+responder
+sslsplit
+rebind
+dnschef
+darkstat
+driftnet
+hexinject
+
+# ── Forensics ──
+sleuthkit
+foremost
+testdisk
+yara
+bulk-extractor
+binwalk
+scalpel
+dcfldd
+ddrescue
+ewf-tools
+afflib-tools
+
+# ── Reverse Engineering ──
+radare2
+rizin
+gdb
+exiv2
+edb-debugger
+rizin-cutter
+
+# ── Crypto & Stego ──
+ssldump
+sslscan
+sslyze
+steghide
+truecrack
+crackle
+
+# ── Windows & Active Directory ──
+impacket-scripts
+python3-impacket
+netexec
+samdump2
+mimikatz
+chntpw
+passing-the-hash
+gpp-decrypt
+kerberoast
+krbrelayx
+
+# ── Post-Exploitation & Pivoting ──
+proxychains4
+socat
+ncat
+python3-scapy
+chisel
+sshuttle
+ptunnel
+iodine
+dns2tcp
+
+# ── Reporting ──
+faraday-cli
+pandoc
+
+# ── Utilities ──
+curl
+wget
+git
+vim
+less
+file
+tree
+jq
+hashdeep
+exiftool

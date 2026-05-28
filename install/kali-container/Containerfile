@@ -1,0 +1,34 @@
+FROM docker.io/kalilinux/kali-rolling
+
+COPY packages.txt /tmp/packages.txt
+
+# Package list is long enough that a mirror sync gap may occasionally 404 on the
+# default http.kali.org CDN. When that happens, rebuild an hour later or pin an
+# earlier base image tag. This resolves itself within hours as Cloudflare edges
+# catch up.
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Acquire::Retries=5 \
+      nmap masscan zmap arp-scan fping hping3 \
+      aircrack-ng kismet reaver wifite macchanger iw hostapd mdk3 \
+      gobuster ffuf wfuzz nikto sqlmap wafw00f whatweb dirb \
+      wapiti skipfish joomscan cadaver \
+      john hashcat hydra medusa ncrack ophcrack \
+      crunch cewl rsmangler maskprocessor statsprocessor \
+      hashid pipal fcrackzip pdfcrack \
+      metasploit-framework set weevely shellnoob termineter \
+      dnsenum dnsrecon theharvester sherlock sublist3r recon-ng \
+      spiderfoot fierce amass enum4linux nbtscan smbmap \
+      onesixtyone ike-scan snmpcheck lbd dmitry maltego \
+      tcpdump tshark wireshark dsniff bettercap responder \
+      sslsplit rebind dnschef darkstat driftnet hexinject \
+      sleuthkit foremost testdisk yara bulk-extractor binwalk \
+      scalpel dcfldd ddrescue \
+      radare2 rizin rizin-cutter gdb exiv2 edb-debugger \
+      ssldump sslscan sslyze steghide truecrack crackle \
+      impacket-scripts python3-impacket netexec samdump2 mimikatz \
+      chntpw passing-the-hash gpp-decrypt kerberoast krbrelayx \
+      proxychains4 socat ncat python3-scapy chisel sshuttle \
+      ptunnel iodine dns2tcp \
+      pandoc curl wget git vim less file tree jq \
+      hashdeep exiftool ewf-tools afflib-tools && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

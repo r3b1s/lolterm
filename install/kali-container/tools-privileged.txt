@@ -1,0 +1,43 @@
+# lolterm Kali container — privileged tool allowlist
+# Each non-comment line generates a native ~/.local/bin/<tool> wrapper.
+# Tools here run via: podman exec --privileged -it -w "$PWD" kali <tool>
+# These tools need raw sockets, monitor mode, or packet injection.
+# Only deliberate security tools — core system commands are excluded.
+
+# ── Scanning (raw sockets needed) ──
+nmap
+masscan
+zmap
+arp-scan
+fping
+hping3
+
+# ── Wireless (monitor mode, raw injection) ──
+aircrack-ng
+kismet
+reaver
+wifite
+macchanger
+iw
+hostapd
+mdk3
+
+# ── Sniffing, Spoofing & MITM ──
+tcpdump
+tshark
+wireshark
+dsniff
+ettercap
+bettercap
+responder
+sslsplit
+rebind
+dnschef
+darkstat
+driftnet
+hexinject
+
+# ── Exploitation (Metasploit modules may do raw socket ops) ──
+msfconsole
+msfvenom
+msfdb

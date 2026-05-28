@@ -30,10 +30,24 @@ update_dnf_packages() {
   fi
 }
 
+update_kali_container() {
+  if podman container exists kali &>/dev/null; then
+    echo "Updating Kali container packages..."
+    if podman ps --filter name=kali --filter status=running --format '{{.Names}}' | grep -qxF kali; then
+      podman exec kali apt-get update
+      podman exec kali apt-get upgrade -y
+      podman exec kali apt-get autoremove -y
+      podman exec kali apt-get clean
+      echo "Kali container packages updated."
+    else
+      echo "Kali container exists but is not running. Skipping container update."
+      echo "Start it with: podman start kali"
+    fi
+  fi
+}
+
 update_rtk() {
   echo "Updating rtk..."
-
-  local arch rpm_name release_json version download_base tmpdir
   arch="$(uname -m)"
   tmpdir="$(mktemp -d)"
 
@@ -58,5 +72,6 @@ update_rtk() {
 
 update_dnf_packages
 update_rtk
+update_kali_container
 
 echo "Fedora packages and lolterm-managed non-DNF tools updated."

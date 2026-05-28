@@ -31,6 +31,12 @@ For a cloud desktop reachable with an RDP client:
 bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
 ```
 
+For a Kali Linux security tools environment inside a Podman container:
+
+```bash
+bash install.sh --kali-container
+```
+
 To add the desktop later on an existing lolterm host:
 
 ```bash
@@ -64,6 +70,8 @@ Log out and back in when installation completes.
 `--enable-host-firewall`: Configure an explicit firewalld host firewall with deny-by-default inbound posture, SSH allowed, and XRDP allowed only when `--remote-desktop xrdp` is selected. In headless mode this requires `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`.
 
 `--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
+
+`--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, creates a named `kali` container with host networking and home-directory mount, enables systemd user service for autostart, and generates native shell wrapper scripts for common tools. Run `kali-sh` for an interactive Kali shell.
 
 `--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
 
@@ -217,6 +225,60 @@ By default, lolterm preserves Fedora Cloud's baseline network posture and does n
 For hosts without an external firewall, pass `--enable-host-firewall` during install or run `lolterm-configure-firewall` later. This enables firewalld with a `lolterm` zone, deny-by-default inbound behavior, and SSH allowed before the firewall is applied. XRDP is allowed only when XRDP was explicitly requested during install, or when `lolterm-configure-firewall --allow-xrdp` is used later.
 
 In headless installs, `--enable-host-firewall` requires an explicit access path: `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`. lolterm does not currently add VPN-specific firewall allowances; NetBird and Tailscale firewall behavior should be reviewed before adding such rules.
+
+## Kali Container
+
+`--kali-container` installs a Kali Linux environment inside a rootless Podman container with native shell integration.
+
+The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling` with a curated set of security tools, creates a `kali` container with host networking and home-directory mount, enables a systemd user service for autostart, and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
+
+```bash
+bash install.sh --kali-container
+```
+
+### Tool Invocation
+
+Most curated tools get native shell wrappers:
+
+```bash
+nmap -sV target              # native wrapper (uses podman exec)
+aircrack-ng -a wlan0mon      # native wrapper with --privileged
+kali msfconsole              # fallback prefix for any tool
+kali-sh                      # interactive Kali shell
+```
+
+Two allowlist files control which tools get wrappers:
+
+- `tools.txt` — tools run via plain `podman exec`
+- `tools-privileged.txt` — tools run via `podman exec --privileged` (raw sockets, wireless, sniffing)
+
+Both are copied to `~/.local/share/lolterm/kali-container/` and can be edited locally.
+
+### Adding Packages
+
+Edit the local copy of the package list and rebuild:
+
+```bash
+vim ~/.local/share/lolterm/kali-container/packages.txt
+lolterm-kali-rebuild
+```
+
+### Updating
+
+```bash
+lolterm-kali-update       # update packages inside running container
+lolterm-kali-rebuild      # full rebuild (image + container + wrappers)
+```
+
+The `lolterm-update` script also updates Kali container packages when the container exists.
+
+### SELinux
+
+On SELinux Enforcing systems, the installer applies the `:Z` flag to volume mounts so the container can read and write mounted directories. No host-level SELinux policy modification is needed for rootless Podman operation.
+
+### GUI Tools (Future)
+
+X11 passthrough is configured (socket mount + DISPLAY passthrough) but no GUI-focused tools are wrappered yet. Run `kali-sh` and launch graphical tools from the interactive shell.
 
 ## CI Smoke Tests
 

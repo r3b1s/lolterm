@@ -1,0 +1,122 @@
+# lolterm Kali container — normal tool allowlist
+# Each non-comment line generates a native ~/.local/bin/<tool> wrapper.
+# Tools here run via: podman exec -it -w "$PWD" kali <tool>
+# Only deliberate security tools — core system commands are excluded.
+# Add entries here to make more tools available as native commands.
+
+# ── Web & Vulnerability ──
+gobuster
+ffuf
+wfuzz
+nikto
+sqlmap
+wafw00f
+whatweb
+dirb
+wapiti
+skipfish
+joomscan
+cadaver
+
+# ── Password & Cracking ──
+john
+hashcat
+hydra
+medusa
+ncrack
+ophcrack
+crunch
+cewl
+rsmangler
+maskprocessor
+statsprocessor
+hashid
+hash-identifier
+pipal
+fcrackzip
+pdfcrack
+
+# ── Exploitation ──
+set
+weevely
+shellnoob
+termineter
+searchsploit
+
+# ── OSINT & Reconnaissance ──
+dnsenum
+dnsrecon
+theharvester
+sherlock
+sublist3r
+recon-ng
+spiderfoot
+fierce
+amass
+enum4linux
+nbtscan
+smbmap
+onesixtyone
+ike-scan
+snmpcheck
+lbd
+dmitry
+maltego
+
+# ── Forensics ──
+sleuthkit
+foremost
+testdisk
+yara
+bulk-extractor
+binwalk
+scalpel
+dcfldd
+ddrescue
+ewfacquire
+ewfexport
+affcat
+affcompare
+
+# ── Reverse Engineering ──
+radare2
+r2
+rizin
+rz-cutter
+gdb
+exiv2
+edb-debugger
+
+# ── Crypto & Stego ──
+ssldump
+sslscan
+sslyze
+steghide
+crackle
+
+# ── Windows & Active Directory ──
+netexec
+samdump2
+chntpw
+gpp-decrypt
+kerberoast
+krbrelayx
+
+# ── Post-Exploitation & Pivoting ──
+proxychains4
+socat
+ncat
+chisel
+sshuttle
+ptunnel
+iodine
+dns2tcp
+
+# ── Reporting ──
+faraday-cli
+pandoc
+
+# ── Utilities ──
+hashdeep
+exiftool
+# SecLists needs git clone — handled separately from wrapper generation
