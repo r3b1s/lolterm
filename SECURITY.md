@@ -22,6 +22,8 @@ Every package source change must be documented in `README.md` and this file.
 
 `act-cli` is installed from the `goncalossilva/act` COPR documented by the upstream act project for Fedora/RHEL. Trust basis: upstream-documented COPR package source for act. Update command: `sudo dnf upgrade act-cli`.
 
+`claude-code` is installed only when `--claude` is selected, from the Anthropic official signed DNF repository. Trust basis: official project-owned DNF repository with GPG signing. Repository fingerprint: `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE`. Update command: `sudo dnf upgrade claude-code`.
+
 `rtk` is installed on x86_64 from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
 
 `mise` is optional and installed only when `--mise` is selected, from the `jdxcode/mise` COPR documented by mise as the Fedora/RHEL install path. Trust basis: upstream maintainer-owned COPR. Update command: `sudo dnf upgrade mise`.

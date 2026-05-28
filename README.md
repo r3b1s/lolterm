@@ -31,6 +31,12 @@ For a cloud desktop reachable with an RDP client:
 bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
 ```
 
+For Claude Code (AI coding agent in the terminal):
+
+```bash
+bash install.sh --claude
+```
+
 For a Kali Linux security tools environment inside a Podman container:
 
 ```bash
@@ -147,6 +153,7 @@ lolterm NetBird SELinux policy optional
 xrdp optional
 xorgxrdp optional
 xrdp-selinux optional
+claude-code optional with --claude
 firewalld optional with --enable-host-firewall
 ```
 
@@ -169,6 +176,8 @@ LazyVim is installed from the official LazyVim starter repository.
 NetBird provisioning installs a small local SELinux policy module on SELinux-enabled systems. The module gives NetBird its own `netbird_t` service domain and permits only that domain to transition into the authenticated user's shell domain for NetBird SSH.
 
 XFCE is installed from Fedora's `xfce-desktop` package group when `--xfce-desktop` is selected. XRDP, xorgxrdp, and xrdp-selinux are installed from Fedora DNF packages when `--remote-desktop xrdp` is selected. firewalld is installed from Fedora DNF packages when `--enable-host-firewall` requires it.
+
+`claude-code` is installed only when `--claude` is selected, from the Anthropic official signed DNF repository (https://code.claude.com/docs/en/setup#install-with-linux-package-managers). Trust basis: official project-owned repository with GPG signing. Repository fingerprint: `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE`.
 
 Docker, lazydocker, lazygit, uv, and global npm coding agents are intentionally not installed right now.
 
