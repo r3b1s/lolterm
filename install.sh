@@ -584,6 +584,22 @@ enable_services() {
 }
 enable_services
 
+# ---------- Allow rootless containers to bind low ports ----------
+configure_unprivileged_ports() {
+  local current
+  current="$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start 2>/dev/null || echo 1024)"
+
+  if [[ "$current" -le 1 ]]; then
+    return 0
+  fi
+
+  section "Allowing unprivileged port binding below 1024..."
+  echo 1 | sudo tee /proc/sys/net/ipv4/ip_unprivileged_port_start >/dev/null
+  echo 'net.ipv4.ip_unprivileged_port_start=1' | sudo tee /etc/sysctl.d/99-lolterm-unprivileged-ports.conf >/dev/null
+  echo "  net.ipv4.ip_unprivileged_port_start=1 (was $current)"
+}
+configure_unprivileged_ports
+
 if $ENABLE_HOST_FIREWALL; then
   configure_host_firewall "$([[ "$REMOTE_DESKTOP" == "xrdp" ]] && echo true || echo false)"
 fi
