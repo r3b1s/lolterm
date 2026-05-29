@@ -15,12 +15,15 @@ run_test() {
     bash -lc "LOLTERM_INSTALLER_DIR=/workspace /workspace/install.sh --headless --kali-container"
 
   local state_dir="/home/$TEST_USER/.local/share/lolterm/kali-container"
+  local quadlet_dir="/home/$TEST_USER/.config/containers/systemd"
 
   assert_rpm podman
   assert_path "$state_dir/Containerfile"
+  assert_path "$state_dir/kali.container"
   assert_path "$state_dir/packages.txt"
   assert_path "$state_dir/tools.txt"
   assert_path "$state_dir/tools-privileged.txt"
+  assert_path "$quadlet_dir/kali.container"
   assert_executable "/home/$TEST_USER/.local/bin/nmap"
   assert_executable "/home/$TEST_USER/.local/bin/hydra"
   assert_executable "/home/$TEST_USER/.local/bin/aircrack-ng"

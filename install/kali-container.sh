@@ -8,8 +8,7 @@ install_kali_container() {
 
   ensure_podman_installed
   build_kali_image
-  create_kali_container
-  enable_kali_autostart
+  setup_kali_quadlet
   generate_kali_wrappers
   install_kali_shell_integration
   copy_kali_config_to_state
@@ -41,53 +40,39 @@ build_kali_image() {
   echo "  Image lolterm-kali built"
 }
 
-selinux_volume_flag() {
-  if command -v getenforce &>/dev/null && [[ "$(getenforce)" == "Enforcing" ]]; then
-    echo ":Z"
-  else
-    echo ""
-  fi
-}
+setup_kali_quadlet() {
+  section "Setting up Kali container quadlet..."
 
-create_kali_container() {
-  section "Creating kali container..."
+  local quadlet_dir="$TARGET_HOME/.config/containers/systemd"
 
-  # Remove existing container with this name
+  mkdir -p "$quadlet_dir"
+  cp -f "$INSTALLER_DIR/install/kali-container/kali.container" "$quadlet_dir/kali.container"
+
+  # Remove any container created by the old podman create + generate systemd approach
   if podman container exists kali &>/dev/null; then
-    echo "  Removing existing kali container..."
     podman rm -f kali
   fi
 
-  local vol_flag
-  vol_flag="$(selinux_volume_flag)"
+  # Remove the old systemd user service if it exists from a prior install
+  rm -f "$TARGET_HOME/.config/systemd/user/container-kali.service"
 
-  podman create --name kali \
-    --network host \
-    --privileged \
-    -v /tmp/.X11-unix:/tmp/.X11-unix"${vol_flag}" \
-    -v "$TARGET_HOME:$TARGET_HOME${vol_flag}" \
-    -e DISPLAY \
-    lolterm-kali \
-    sleep infinity
+  # Enable linger so --user services start at boot without requiring login
+  loginctl enable-linger "$TARGET_USER" 2>/dev/null || true
 
-  echo "  Container 'kali' created"
-}
+  systemctl --user daemon-reload 2>/dev/null || {
+    echo "  Warning: could not reload user daemon (no D-Bus session?)"
+    echo "  The quadlet file is installed at $quadlet_dir/kali.container"
+    echo "  Start manually with: systemctl --user start kali-container.service"
+    return
+  }
 
-enable_kali_autostart() {
-  section "Configuring Kali container autostart..."
+  systemctl --user enable --now kali-container.service 2>/dev/null || {
+    echo "  Warning: could not enable quadlet service (no D-Bus session?)"
+    echo "  The quadlet file is installed at $quadlet_dir/kali.container"
+    echo "  Start manually with: systemctl --user start kali-container.service"
+  }
 
-  local service_dir="$TARGET_HOME/.config/systemd/user"
-  mkdir -p "$service_dir"
-
-  podman generate systemd --name kali --new > "$service_dir/container-kali.service"
-
-  if systemctl --user enable --now container-kali.service 2>/dev/null; then
-    echo "  systemd user service enabled and started"
-  else
-    echo "  Warning: could not enable systemd user service"
-    echo "  (no user D-Bus session? systemctl --user not available in this context)"
-    echo "  Start manually with: podman start kali"
-  fi
+  echo "  Quadlet installed and service enabled"
 }
 
 generate_kali_wrappers() {
@@ -166,6 +151,7 @@ copy_kali_config_to_state() {
 
   mkdir -p "$dst"
   cp -f "$src/Containerfile" "$dst/Containerfile"
+  cp -f "$src/kali.container" "$dst/kali.container"
   cp -f "$src/packages.txt" "$dst/packages.txt"
   cp -f "$src/tools.txt" "$dst/tools.txt"
   cp -f "$src/tools-privileged.txt" "$dst/tools-privileged.txt"

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Rebuild the lolterm-kali image and recreate the Kali container.
 # Uses the local config at ~/.local/share/lolterm/kali-container/
+# Container lifecycle is managed by the kali quadlet (systemd --user).
 
 set -euo pipefail
 
@@ -15,32 +16,22 @@ fi
 echo "==> Rebuilding lolterm-kali image..."
 podman build -t lolterm-kali "$CONFIG_DIR"
 
-echo "==> Removing old kali container..."
-podman rm -f kali 2>/dev/null || true
-
-echo "==> Creating new kali container..."
-
-# Detect SELinux enforcing mode for volume flags
-vol_flag=""
-if command -v getenforce &>/dev/null && [[ "$(getenforce)" == "Enforcing" ]]; then
-  vol_flag=":Z"
+echo "==> Restarting container via quadlet service..."
+if systemctl --user list-units --all --no-legend kali-container.service 2>/dev/null | grep -q .; then
+  systemctl --user restart kali-container.service
+  echo "  Quadlet service restarted with new image"
+else
+  # First-time setup after upgrade from old approach — install the quadlet
+  echo "  Quadlet not yet installed; setting up..."
+  QUADLET_DIR="$HOME/.config/containers/systemd"
+  mkdir -p "$QUADLET_DIR"
+  cp -f "$CONFIG_DIR/kali.container" "$QUADLET_DIR/kali.container"
+  rm -f "$HOME/.config/systemd/user/container-kali.service"
+  loginctl enable-linger "$(whoami)" 2>/dev/null || true
+  systemctl --user daemon-reload
+  systemctl --user enable --now kali-container.service
+  echo "  Quadlet installed and service started"
 fi
-
-podman create --name kali \
-  --network host \
-  --privileged \
-  -v /tmp/.X11-unix:/tmp/.X11-unix"${vol_flag}" \
-  -v "$HOME:$HOME${vol_flag}" \
-  -e DISPLAY \
-  lolterm-kali \
-  sleep infinity
-
-echo "==> Regenerating systemd user service..."
-service_dir="${XDG_DATA_HOME:-$HOME/.local/share}/lolterm/kali-container"
-mkdir -p "$HOME/.config/systemd/user"
-podman generate systemd --name kali --new > "$HOME/.config/systemd/user/container-kali.service"
-systemctl --user daemon-reload
-systemctl --user enable --now container-kali.service
 
 echo "==> Regenerating tool wrappers..."
 bindir="$HOME/.local/bin"

@@ -77,7 +77,7 @@ Log out and back in when installation completes.
 
 `--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
 
-`--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, creates a named `kali` container with host networking and home-directory mount, enables systemd user service for autostart, and generates native shell wrapper scripts for common tools. Run `kali-sh` for an interactive Kali shell.
+`--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet for container lifecycle and boot-start via systemd --user with linger, and generates native shell wrapper scripts for common tools. Run `kali-sh` for an interactive Kali shell.
 
 `--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
 
@@ -239,7 +239,9 @@ In headless installs, `--enable-host-firewall` requires an explicit access path:
 
 `--kali-container` installs a Kali Linux environment inside a rootless Podman container with native shell integration.
 
-The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling` with a curated set of security tools, creates a `kali` container with host networking and home-directory mount, enables a systemd user service for autostart, and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
+The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet (`~/.config/containers/systemd/kali.container`) for container lifecycle management and boot-start via systemd --user with linger, and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
+
+The container runs privileged (rootless, scoped to the user namespace) to support raw sockets, packet injection, and monitor-mode tools. Privileged-tier tools additionally pass `--privileged` at exec time.
 
 ```bash
 bash install.sh --kali-container

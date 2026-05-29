@@ -24,50 +24,47 @@ The system SHALL build a derived OCI image from the official `kalilinux/kali-rol
 - **WHEN** the `lolterm-kali` image already exists
 - **THEN** the system skips the build and reuses the existing image
 
-### Requirement: A named container is created with specific configuration
+### Requirement: A named container is managed by a Podman quadlet
 
-The system SHALL create a named Podman container called `kali` with host networking, home-directory volume mount, X11 socket passthrough, and a persistent entrypoint.
+The system SHALL install a Podman quadlet (`.container` file) that defines the Kali container with host networking, home-directory volume mount, X11 socket passthrough, and a persistent entrypoint. The quadlet generates a systemd --user service that creates and manages the container.
 
-#### Scenario: Container is created
+#### Scenario: Quadlet is installed
 - **WHEN** the image is built or already exists
-- **THEN** the system creates a container named `kali` with:
-  - `--network host`
-  - `-v "$HOME:$HOME"` (same-path home mount)
-  - `-v /tmp/.X11-unix:/tmp/.X11-unix` (X11 socket)
-  - `-e DISPLAY`
-  - Entrypoint `sleep infinity`
+- **THEN** the system copies `kali.container` to `~/.config/containers/systemd/kali.container` containing:
+  - `Network=host`
+  - `Volume=%h:%h` (same-path home mount)
+  - `Volume=/tmp/.X11-unix:/tmp/.X11-unix:Z` (X11 socket with SELinux label)
+  - `Privileged=true` (rootless user-namespace-scoped capabilities)
+  - `Exec=sleep infinity`
+  - `Restart=always`
 
-#### Scenario: Container already exists
-- **WHEN** a container named `kali` already exists
-- **THEN** the system removes it and creates a fresh one with the current configuration
+#### Scenario: Old container is cleaned up
+- **WHEN** a container named `kali` already exists from a prior install
+- **THEN** the system removes it before the quadlet takes over container lifecycle
 
-### Requirement: SELinux is handled via volume mount flags
+### Requirement: SELinux volume mount flags in the quadlet
 
-The system SHALL use the `:Z` SELinux flag on all volume mounts to ensure the container can access mounted paths under SELinux Enforcing mode.
+The system SHALL use `:Z` on volume mounts in the quadlet file to ensure the container can access mounted paths under SELinux Enforcing mode. The `:Z` flag is harmless on Permissive/Disabled systems and is applied unconditionally in the static quadlet file.
 
-#### Scenario: SELinux is Enforcing
-- **WHEN** SELinux is in Enforcing mode
-- **THEN** volume mounts use `:Z` flags so the container can read and write mounted directories
+### Requirement: Container survives reboots via Podman quadlet
 
-#### Scenario: SELinux is Permissive or Disabled
-- **WHEN** SELinux is not in Enforcing mode
-- **THEN** volume mounts use standard flags without `:Z`
+The system SHALL install a Podman quadlet (`.container` file) in `~/.config/containers/systemd/kali.container` and enable linger so the container starts automatically on boot without requiring user login.
 
-### Requirement: Container survives reboots via systemd user service
+#### Scenario: Quadlet is installed and enabled
+- **WHEN** the installer runs the kali container module
+- **THEN** the system:
+  1. Copies `kali.container` to `~/.config/containers/systemd/kali.container`
+  2. Enables linger with `loginctl enable-linger $TARGET_USER`
+  3. Runs `systemctl --user daemon-reload`
+  4. Runs `systemctl --user enable --now kali-container.service`
 
-The system SHALL create a systemd user service and attempt to enable it for automatic container startup on boot. If user D-Bus is unavailable, the service file is still created and the user can start the container manually.
+#### Scenario: Service starts on boot
+- **WHEN** the host reboots
+- **THEN** the kali container starts automatically via the quadlet-generated systemd --user service, because linger is enabled
 
-#### Scenario: Systemd user service is created
-- **WHEN** the container is created
-- **THEN** the system runs `podman generate systemd --name kali --new` and saves the unit to `~/.config/systemd/user/container-kali.service`
-
-#### Scenario: Service is enabled successfully
-- **WHEN** the systemd unit file exists and user D-Bus is available
-- **THEN** the system runs `systemctl --user enable --now container-kali.service`
-
-#### Scenario: Service enablement fails gracefully
-- **WHEN** the systemd unit file exists but user D-Bus is unavailable
-- **THEN** the system logs a warning and instructs the user to start the container manually with `podman start kali`
+#### Scenario: User D-Bus is unavailable during install
+- **WHEN** the systemd user manager is not available (no D-Bus session)
+- **THEN** the quadlet file is still installed, linger is still enabled, and the container starts on next login (or manually with `systemctl --user start kali-container.service`)
 
 ### Requirement: Normal tool wrappers are generated from an allowlist
 
@@ -111,7 +108,7 @@ The system SHALL add `kali()` and `kali-sh()` shell functions to the user's `.ba
 
 ### Requirement: Container config is persisted locally for user editing
 
-The system SHALL copy `Containerfile`, `packages.txt`, `tools.txt`, and `tools-privileged.txt` to `~/.local/share/lolterm/kali-container/` so the user can edit them for post-install customization.
+The system SHALL copy `Containerfile`, `kali.container`, `packages.txt`, `tools.txt`, and `tools-privileged.txt` to `~/.local/share/lolterm/kali-container/` so the user can edit them for post-install customization.
 
 #### Scenario: Config files are copied
 - **WHEN** the module runs
@@ -131,7 +128,7 @@ The system SHALL provide a `lolterm-kali-update` script that runs `apt-get updat
 
 #### Scenario: Container is rebuilt from updated config
 - **WHEN** `lolterm-kali-rebuild` is invoked
-- **THEN** the script rebuilds the image from the local config, removes and recreates the container, and regenerates wrappers
+- **THEN** the script rebuilds the image from the local config, restarts the quadlet service (which replaces the container), and regenerates wrappers
 
 ### Requirement: Configuration state directory structure
 
@@ -141,6 +138,7 @@ The system SHALL maintain a state directory at `~/.local/share/lolterm/kali-cont
 - **WHEN** the module runs
 - **THEN** the following files exist in `~/.local/share/lolterm/kali-container/`:
   - `Containerfile` — derived image build definition
+  - `kali.container` — Podman quadlet file
   - `packages.txt` — curated Kali apt package list
   - `tools.txt` — normal tool allowlist
   - `tools-privileged.txt` — privileged tool allowlist
