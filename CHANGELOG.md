@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- (No new features yet)
+- Lowered the unprivileged port floor to 1 so rootless Podman containers can bind any port including well-known ports below 1024. The sysctl setting is persisted via `/etc/sysctl.d/99-lolterm-unprivileged-ports.conf`.
 
 ### Changed
-- (No changes yet)
+- Migrated Kali container autostart from `podman generate systemd` to a Podman quadlet (`kali.container`). The quadlet enables `loginctl enable-linger` so the container starts at boot without requiring user login, and `lolterm-kali-rebuild` now restarts the quadlet service instead of manually re-creating the container.
 
 ### Fixed
 - (No fixes yet)
