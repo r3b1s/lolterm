@@ -1,0 +1,13 @@
+# lolterm Kali container — GUI tool allowlist
+# Each non-comment line generates a .desktop entry and inherits env vars
+# for X11 display forwarding (DISPLAY, XAUTHORITY).
+# Tools here must also exist in tools.txt or tools-privileged.txt for
+# CLI wrappers. Add entries here to make more GUI tools discoverable
+# through the XFCE start menu.
+
+wireshark
+maltego
+rizin-cutter
+edb-debugger
+ettercap-graphical
+chromium

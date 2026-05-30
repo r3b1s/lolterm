@@ -55,7 +55,7 @@ if [[ "$(podman inspect --format '{{.State.Status}}' kali 2>/dev/null)" != "runn
   podman start kali >/dev/null
 fi
 
-exec podman exec -it -w "$PWD" kali "$(basename "$0")" "$@"
+exec podman exec -it -w "$PWD" -e DISPLAY -e XAUTHORITY kali "$(basename "$0")" "$@"
 WRAPPER
   chmod +x "$bindir/$line"
 done < "$CONFIG_DIR/tools.txt"
@@ -78,11 +78,63 @@ if [[ "$(podman inspect --format '{{.State.Status}}' kali 2>/dev/null)" != "runn
   podman start kali >/dev/null
 fi
 
-exec podman exec --privileged -it -w "$PWD" kali "$(basename "$0")" "$@"
+exec podman exec --privileged -it -w "$PWD" -e DISPLAY -e XAUTHORITY kali "$(basename "$0")" "$@"
 WRAPPER
   chmod +x "$bindir/$line"
 done < "$CONFIG_DIR/tools-privileged.txt"
 
 echo ""
-echo "Done. Kali container rebuilt and tools wrappers regenerated."
+echo "==> Extracting Kali logo icon..."
+icon_dir="$HOME/.local/share/icons/hicolor/scalable/apps"
+mkdir -p "$icon_dir"
+icon_path="$(podman run --rm lolterm-kali sh -c '
+  find /usr/share/icons /usr/share/pixmaps -name "kali*" -path "*/scalable/*" 2>/dev/null | head -1
+' 2>/dev/null)" || true
+if [[ -n "$icon_path" ]]; then
+  podman cp "lolterm-kali:$icon_path" "$icon_dir/kali-logo.svg" 2>/dev/null && \
+    echo "  Icon extracted to $icon_dir/kali-logo.svg"
+else
+  # Fallback: try non-scalable variants
+  icon_path="$(podman run --rm lolterm-kali sh -c '
+    find /usr/share/icons /usr/share/pixmaps -name "kali*" 2>/dev/null | head -1
+  ' 2>/dev/null)" || true
+  if [[ -n "$icon_path" ]]; then
+    ext="${icon_path##*.}"
+    podman cp "lolterm-kali:$icon_path" "$icon_dir/kali-logo.$ext" 2>/dev/null && \
+      echo "  Icon extracted to $icon_dir/kali-logo.$ext"
+  else
+    echo "  Warning: Kali logo icon not found — desktop entries will use placeholder"
+  fi
+fi
+
+echo "==> Generating .desktop entries for GUI tools..."
+desktop_dir="$HOME/.local/share/applications"
+mkdir -p "$desktop_dir"
+if [[ -f "$CONFIG_DIR/tools-gui.txt" ]]; then
+  while IFS= read -r line; do
+    line="${line## }"
+    line="${line%% }"
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    first="${line:0:1}"
+    rest="${line:1}"
+    display_name="$(tr '[:lower:]' '[:upper:]' <<<"$first")$rest"
+    cat > "$desktop_dir/kali-$line.desktop" <<DESKTOP
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=$display_name (Kali)
+Comment=Kali container tool
+Exec=$HOME/.local/bin/$line %F
+Icon=kali-logo
+Terminal=false
+Categories=Security;
+DESKTOP
+  done < "$CONFIG_DIR/tools-gui.txt"
+  echo "  Desktop entries generated in $desktop_dir"
+else
+  echo "  tools-gui.txt not found — skipping desktop entries"
+fi
+
+echo ""
+echo "Done. Kali container rebuilt, tools wrappers, icons, and desktop entries regenerated."
 echo "Run 'kali-sh' to open an interactive Kali shell."

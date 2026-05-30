@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Kali container GUI tool integration: tool wrappers and shell functions now forward `DISPLAY` and `XAUTHORITY` into the container, enabling graphical tools (Wireshark, Maltego, etc.) to connect to the host X server via the mounted X11 socket.
+- New `install/kali-container/tools-gui.txt` allowlist defines which tools get XFCE menu entries: wireshark, maltego, rizin-cutter, edb-debugger, ettercap-graphical, chromium.
+- `.desktop` entries are generated for each GUI tool in `~/.local/share/applications/kali-<tool>.desktop`, appearing in the XFCE start menu under the Security category with the Kali logo icon.
+- Kali logo icon is extracted from the container image during install and rebuild for use in `.desktop` entries, with a graceful fallback to a placeholder if not found.
+- Desktop entry generation and icon extraction are included in `lolterm-kali-rebuild` for post-install regeneration after editing `tools-gui.txt`.
+- New `kali-gui-tools` OpenSpec capability spec documenting GUI tool allowlist, desktop entry generation, icon extraction, and rebuild behavior.
 - Kali container tool wrappers now auto-start the container on first use if it exists but is stopped, eliminating "no container found" errors after reboot or headless install.
 - Documented headless Podman container patterns (D-Bus, quadlet naming, wrapper auto-start) in AGENTS.md for future development reference.
 - Added `--hostname`, `--timezone`, and `--locale` installer flags for non-interactive system configuration (hostname, timezone, locale) during headless provisioning. Commands are wrapped in `|| true` for container environments.
@@ -19,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lowered the unprivileged port floor to 1 so rootless Podman containers can bind any port including well-known ports below 1024. The sysctl setting is persisted via `/etc/sysctl.d/99-lolterm-unprivileged-ports.conf`.
 
 ### Changed
+- All Kali container tool wrappers, `kali()` and `kali-sh()` shell functions now pass `-e DISPLAY -e XAUTHORITY` to the container for X11 display forwarding, enabling GUI tools to work out of the box on XFCE desktops.
+- The Kali container state directory now includes `tools-gui.txt` alongside the existing allowlists for user editing.
+- The `kali-container` OpenSpec spec has been updated with modified requirement scenarios for env var forwarding and GUI config state.
 - RTK is no longer installed by default. It is now opt-in behind the `--rtk` flag, and its install logic has moved from `install.sh` into `install/ai.sh` alongside the Claude Code module.
 - Removed the `cat='bat'` default alias from shell aliases. `bat` remains installed and the `ff` fzf preview alias uses `bat` directly.
 - Migrated Kali container autostart from `podman generate systemd` to a Podman quadlet (`kali.container`). The quadlet enables `loginctl enable-linger` so the container starts at boot without requiring user login, and `lolterm-kali-rebuild` now restarts the quadlet service instead of manually re-creating the container.

@@ -89,7 +89,7 @@ Log out and back in when installation completes.
 
 `--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
 
-`--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet for container lifecycle and boot-start via systemd --user with linger, and generates native shell wrapper scripts for common tools. Run `kali-sh` for an interactive Kali shell.
+`--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet for container lifecycle and boot-start via systemd --user with linger, and generates native shell wrapper scripts for common tools. GUI tools (Wireshark, Maltego, etc.) get XFCE menu entries with X11 display forwarding. Run `kali-sh` for an interactive Kali shell.
 
 `--git-name NAME`: Set the global Git `user.name` during provisioning. Useful in headless mode to skip the interactive `lolterm-setup` prompt. Also sets `init.defaultBranch` to `main`.
 
@@ -263,7 +263,7 @@ In headless installs, `--enable-host-firewall` requires an explicit access path:
 
 ## Kali Container
 
-`--kali-container` installs a Kali Linux environment inside a rootless Podman container with native shell integration.
+`--kali-container` installs a Kali Linux environment inside a rootless Podman container with native shell integration and GUI tool support for XFCE desktops.
 
 The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet (`~/.config/containers/systemd/kali.container`) for container lifecycle management and boot-start via systemd --user with linger, and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
 
@@ -313,9 +313,33 @@ The `lolterm-update` script also updates Kali container packages when the contai
 
 On SELinux Enforcing systems, the quadlet uses `SecurityLabelDisable=true` to disable SELinux separation for the container, allowing it to read and write mounted directories without relabeling. Rootless podman cannot apply `:Z` relabeling to user home directories, so this is the correct approach for rootless Kali container operation.
 
-### GUI Tools (Future)
+### GUI Tools
 
-X11 passthrough is configured (socket mount + DISPLAY passthrough) but no GUI-focused tools are wrappered yet. Run `kali-sh` and launch graphical tools from the interactive shell.
+GUI tools in the Kali container can connect to the host X server through the mounted X11 socket. This enables graphical Kali tools (Wireshark, Maltego, rizin-cutter, etc.) to appear as native windows on the XFCE desktop or any X11 session.
+
+Tool wrapper scripts and the `kali()` / `kali-sh()` shell functions forward `DISPLAY` and `XAUTHORITY` into the container. When `DISPLAY` is unset (headless or SSH session), GUI tools fail gracefully with "cannot open display" — no regression for CLI-only use.
+
+#### GUI Tool Allowlist
+
+The `install/kali-container/tools-gui.txt` file defines which tools get XFCE menu entries:
+
+```
+wireshark
+maltego
+rizin-cutter
+edb-debugger
+ettercap-graphical
+chromium
+```
+
+Each tool in this list gets a `.desktop` entry at `~/.local/share/applications/kali-<tool>.desktop`, making it discoverable in the XFCE start menu under the Security category with the Kali logo icon.
+
+#### Desktop Integration
+
+- `.desktop` entries use the tool wrapper script as the `Exec` target, inheriting all container setup (auto-start, display forwarding)
+- The Kali official logo is extracted from the container image and placed at `~/.local/share/icons/hicolor/scalable/apps/kali-logo.svg`
+- Entries follow the overwrite-only pattern — stale entries are harmless (desktop environments show broken entries until clicked)
+- Run `lolterm-kali-rebuild` to regenerate desktop entries and icons after editing `tools-gui.txt`
 
 ## CI Smoke Tests
 

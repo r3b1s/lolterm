@@ -11,6 +11,8 @@ install_kali_container() {
   setup_kali_quadlet
   generate_kali_wrappers
   install_kali_shell_integration
+  extract_kali_icon
+  generate_kali_desktop_entries
   copy_kali_config_to_state
 
   echo "  Kali container setup complete"
@@ -124,7 +126,7 @@ if [[ "\$(podman inspect --format '{{.State.Status}}' kali 2>/dev/null)" != "run
   podman start kali >/dev/null
 fi
 
-exec podman exec ${extra_args} -it -w "\$PWD" kali "\$(basename "\$0")" "\$@"
+exec podman exec ${extra_args} -it -w "\$PWD" -e DISPLAY -e XAUTHORITY kali "\$(basename "\$0")" "\$@"
 WRAPPER
     chmod +x "$bindir/$line"
     count=$((count + 1))
@@ -147,10 +149,10 @@ install_kali_shell_integration() {
 
 # ----- lolterm kali container -----
 kali() {
-  podman exec -it -w "$PWD" kali "$@"
+  podman exec -it -w "$PWD" -e DISPLAY -e XAUTHORITY kali "$@"
 }
 kali-sh() {
-  podman exec -it -w "$PWD" kali /bin/bash
+  podman exec -it -w "$PWD" -e DISPLAY -e XAUTHORITY kali /bin/bash
 }
 # ----- /lolterm kali container -----
 BASHRC
@@ -169,7 +171,89 @@ copy_kali_config_to_state() {
   cp -f "$src/packages.txt" "$dst/packages.txt"
   cp -f "$src/tools.txt" "$dst/tools.txt"
   cp -f "$src/tools-privileged.txt" "$dst/tools-privileged.txt"
+  cp -f "$src/tools-gui.txt" "$dst/tools-gui.txt"
 
   echo "  Config copied to $dst"
   echo "  Edit packages.txt and run 'lolterm-kali-rebuild' to add packages"
+}
+
+extract_kali_icon() {
+  section "Extracting Kali logo icon from container image..."
+
+  local icon_dir="$TARGET_HOME/.local/share/icons/hicolor/scalable/apps"
+  mkdir -p "$icon_dir"
+
+  # Search the image for a scalable Kali logo
+  local icon_path
+  icon_path="$(podman run --rm lolterm-kali sh -c '
+    find /usr/share/icons /usr/share/pixmaps -name "kali*" -path "*/scalable/*" 2>/dev/null | head -1
+  '" 2>/dev/null)" || true
+
+  if [[ -n "$icon_path" ]]; then
+    podman cp "lolterm-kali:$icon_path" "$icon_dir/kali-logo.svg" 2>/dev/null && {
+      echo "  Icon extracted to $icon_dir/kali-logo.svg"
+      return 0
+    }
+  fi
+
+  # Fallback: try non-scalable variants
+  icon_path="$(podman run --rm lolterm-kali sh -c '
+    find /usr/share/icons /usr/share/pixmaps -name "kali*" 2>/dev/null | head -1
+  '" 2>/dev/null)" || true
+
+  if [[ -n "$icon_path" ]]; then
+    local ext="${icon_path##*.}"
+    podman cp "lolterm-kali:$icon_path" "$icon_dir/kali-logo.$ext" 2>/dev/null && {
+      echo "  Icon extracted to $icon_dir/kali-logo.$ext"
+      return 0
+    }
+  fi
+
+  echo "  Warning: Kali logo icon not found in container image — skipping"
+  echo "  Desktop entries will use a placeholder icon"
+}
+
+generate_kali_desktop_entries() {
+  local list_file="$INSTALLER_DIR/install/kali-container/tools-gui.txt"
+  local desktop_dir="$TARGET_HOME/.local/share/applications"
+
+  if [[ ! -f "$list_file" ]]; then
+    echo "  GUI tools list not found: $list_file — skipping desktop entries"
+    return 1
+  fi
+
+  section "Generating .desktop entries for GUI tools..."
+
+  mkdir -p "$desktop_dir"
+  local count=0
+
+  while IFS= read -r line; do
+    # Strip leading/trailing whitespace
+    line="${line## }"
+    line="${line%% }"
+    # Skip blanks and comments
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+    # Capitalize first letter for display name
+    local first="${line:0:1}"
+    local rest="${line:1}"
+    local display_name
+    display_name="$(tr '[:lower:]' '[:upper:]' <<<"$first")$rest"
+
+    cat > "$desktop_dir/kali-$line.desktop" <<DESKTOP
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=$display_name (Kali)
+Comment=Kali container tool
+Exec=$TARGET_HOME/.local/bin/$line %F
+Icon=kali-logo
+Terminal=false
+Categories=Security;
+DESKTOP
+
+    count=$((count + 1))
+  done < "$list_file"
+
+  echo "  Generated $count .desktop entries in $desktop_dir"
 }
