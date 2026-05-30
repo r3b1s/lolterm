@@ -311,7 +311,7 @@ The `lolterm-update` script also updates Kali container packages when the contai
 
 ### SELinux
 
-On SELinux Enforcing systems, the installer applies the `:Z` flag to volume mounts so the container can read and write mounted directories. No host-level SELinux policy modification is needed for rootless Podman operation.
+On SELinux Enforcing systems, the quadlet uses `SecurityLabelDisable=true` to disable SELinux separation for the container, allowing it to read and write mounted directories without relabeling. Rootless podman cannot apply `:Z` relabeling to user home directories, so this is the correct approach for rootless Kali container operation.
 
 ### GUI Tools (Future)
 

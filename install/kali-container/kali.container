@@ -6,8 +6,10 @@
 # raw sockets or packet injection pass --privileged at exec time, providing
 # per-process escalation without elevating the entire container.
 #
-# SELinux :Z on volume mounts is harmless in Permissive/Disabled mode
-# and required in Enforcing mode for container read/write access.
+# SELinux separation is disabled for this container via SecurityLabelDisable=true.
+# This allows the container to read/write mounted volumes (home directory, X11 socket)
+# without SELinux relabeling. Rootless podman cannot relabel user_home_t to
+# container_file_t on SELinux-enforcing systems, making :Z ineffective here.
 
 [Unit]
 Description=Kali Linux container (lolterm)
@@ -19,8 +21,9 @@ Wants=network-online.target
 Image=localhost/lolterm-kali
 ContainerName=kali
 Network=host
-Volume=/tmp/.X11-unix:/tmp/.X11-unix:Z
-Volume=%h:%h:Z
+SecurityLabelDisable=true
+Volume=/tmp/.X11-unix:/tmp/.X11-unix
+Volume=%h:%h
 Exec=sleep infinity
 
 [Service]

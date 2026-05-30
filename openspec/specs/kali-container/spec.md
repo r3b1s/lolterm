@@ -33,8 +33,10 @@ The system SHALL install a Podman quadlet (`.container` file) that defines the K
 - **THEN** the system copies `kali.container` to `~/.config/containers/systemd/kali.container` containing:
   - `Network=host`
   - `Volume=%h:%h` (same-path home mount)
-  - `Volume=/tmp/.X11-unix:/tmp/.X11-unix:Z` (X11 socket with SELinux label)
-  - `Privileged=true` (rootless user-namespace-scoped capabilities)
+  - `Volume=/tmp/.X11-unix:/tmp/.X11-unix` (X11 socket)
+  - `SecurityLabelDisable=true` (disable SELinux separation for home directory access)
+  - `Exec=sleep infinity`
+  - `Restart=always`
   - `Exec=sleep infinity`
   - `Restart=always`
 
@@ -42,9 +44,9 @@ The system SHALL install a Podman quadlet (`.container` file) that defines the K
 - **WHEN** a container named `kali` already exists from a prior install
 - **THEN** the system removes it before the quadlet takes over container lifecycle
 
-### Requirement: SELinux volume mount flags in the quadlet
+### Requirement: SELinux separation disabled for rootless home directory access
 
-The system SHALL use `:Z` on volume mounts in the quadlet file to ensure the container can access mounted paths under SELinux Enforcing mode. The `:Z` flag is harmless on Permissive/Disabled systems and is applied unconditionally in the static quadlet file.
+The system SHALL disable SELinux separation for the container via `SecurityLabelDisable=true` in the quadlet file. This is the recommended approach for rootless containers mounting user home directories on SELinux-enforcing systems, as rootless podman cannot relabel `user_home_t` paths to `container_file_t` with `:Z`.
 
 ### Requirement: Container survives reboots via Podman quadlet
 
