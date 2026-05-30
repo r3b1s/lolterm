@@ -24,6 +24,7 @@ TIMEZONE=""
 LOCALE=""
 SSH_KEY_FILE=""
 RTK=false
+DEBUG_LOG=""
 
 usage() {
   cat <<'USAGE'
@@ -62,6 +63,7 @@ Options:
   --locale LOCALE     Set the system locale during provisioning
   --ssh-key-file FILE Read an SSH public key from a file
   --rtk               Install RTK (token-optimized CLI proxy)
+  --debug FILE        Log full install output to FILE
   --help             Show this help
 USAGE
 }
@@ -186,6 +188,14 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --rtk) RTK=true; shift ;;
+    --debug)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --debug" >&2
+        exit 1
+      fi
+      DEBUG_LOG="$2"
+      shift 2
+      ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -253,6 +263,12 @@ if [[ -n "$SSH_KEY_FILE" ]]; then
     echo "SSH key file is empty: $SSH_KEY_FILE" >&2
     exit 1
   fi
+fi
+
+# ---------- Debug logging ----------
+if [[ -n "$DEBUG_LOG" ]]; then
+  exec > >(tee -a "$DEBUG_LOG") 2>&1
+  echo "===== lolterm install debug log started: $(date) ====="
 fi
 
 # ---------- Resolve target user (handles sudo) ----------

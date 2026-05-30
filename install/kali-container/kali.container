@@ -2,11 +2,11 @@
 # Podman quadlet — installed to ~/.config/containers/systemd/kali.container
 # Generates a systemd --user service that starts the container at boot.
 #
-# The container is privileged to support raw sockets, packet injection,
-# and monitor-mode tools. Rootless podman --privileged is scoped to the
-# user namespace and does not grant host-level root access.
+# The container itself is not privileged. Tool wrappers for tools that need
+# raw sockets or packet injection pass --privileged at exec time, providing
+# per-process escalation without elevating the entire container.
 #
-# Selinux :Z on volume mounts is harmless in Permissive/Disabled mode
+# SELinux :Z on volume mounts is harmless in Permissive/Disabled mode
 # and required in Enforcing mode for container read/write access.
 
 [Unit]
@@ -19,7 +19,6 @@ Wants=network-online.target
 Image=localhost/lolterm-kali
 ContainerName=kali
 Network=host
-Privileged=true
 Volume=/tmp/.X11-unix:/tmp/.X11-unix:Z
 Volume=%h:%h:Z
 Exec=sleep infinity
