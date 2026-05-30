@@ -187,7 +187,7 @@ extract_kali_icon() {
   local icon_path
   icon_path="$(podman run --rm lolterm-kali sh -c '
     find /usr/share/icons /usr/share/pixmaps -name "kali*" -path "*/scalable/*" 2>/dev/null | head -1
-  '" 2>/dev/null)" || true
+  ' 2>/dev/null)" || true
 
   if [[ -n "$icon_path" ]]; then
     podman cp "lolterm-kali:$icon_path" "$icon_dir/kali-logo.svg" 2>/dev/null && {
@@ -199,7 +199,7 @@ extract_kali_icon() {
   # Fallback: try non-scalable variants
   icon_path="$(podman run --rm lolterm-kali sh -c '
     find /usr/share/icons /usr/share/pixmaps -name "kali*" 2>/dev/null | head -1
-  '" 2>/dev/null)" || true
+  ' 2>/dev/null)" || true
 
   if [[ -n "$icon_path" ]]; then
     local ext="${icon_path##*.}"
