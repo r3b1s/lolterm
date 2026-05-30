@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kali container quadlet service now uses `systemctl --user --machine=user@.host` for headless-safe setup, avoiding the D-Bus dependency that silently broke provisioning from root/script contexts. Service name corrected from `kali-container.service` to `kali.service` (matching quadlet filename convention). No longer calls `systemctl enable` on quadlet-generated transient units.
 - Removed unsupported `Privileged=true` from the quadlet `.container` file — quadlet generator rejected it, causing the service unit to never be generated. Per-exec `--privileged` in tool wrappers handles escalation instead.
 - Quadlet `start` is now guarded against `set -e` — a start failure no longer aborts the entire install.
+- `lolterm-kali-rebuild` is now copied to `~/.local/bin/` during install (was missing from the installer bin copy list).
+- Removed `2>/dev/null` from the quadlet `start` command so systemctl error output is visible in terminal and debug logs instead of being silently swallowed.
 - Documented `LOLTERM_INSTALLER_DIR` development workflow in AGENTS.md for testing local changes without pushing to the remote repository.
 
 ### Security
