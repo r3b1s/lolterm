@@ -6,7 +6,6 @@ if command -v eza &> /dev/null; then
   alias lta='lt -a'
 fi
 
-alias cat='bat'
 alias ff="fzf --preview 'bat --style=numbers --color=always {}'"
 alias eff='$EDITOR "$(ff)"'
 

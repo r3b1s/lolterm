@@ -18,6 +18,18 @@ chmod +x install.sh
 bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..."
 ```
 
+For headless provisioning where you want Git identity configured without interactive prompts:
+
+```bash
+bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --git-name "Your Name" --git-email "you@example.com"
+```
+
+For headless provisioning with system-level configuration:
+
+```bash
+bash install.sh --headless --hostname myserver --timezone America/New_York --locale en_US.UTF-8
+```
+
 Headless VPN provisioning can be added with one or both VPN keys:
 
 ```bash
@@ -78,6 +90,20 @@ Log out and back in when installation completes.
 `--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
 
 `--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet for container lifecycle and boot-start via systemd --user with linger, and generates native shell wrapper scripts for common tools. Run `kali-sh` for an interactive Kali shell.
+
+`--git-name NAME`: Set the global Git `user.name` during provisioning. Useful in headless mode to skip the interactive `lolterm-setup` prompt. Also sets `init.defaultBranch` to `main`.
+
+`--git-email EMAIL`: Set the global Git `user.email` during provisioning. Useful in headless mode to skip the interactive `lolterm-setup` prompt. Also sets `init.defaultBranch` to `main`.
+
+`--hostname NAME`: Set the system hostname during provisioning. Uses `hostnamectl set-hostname`. Safe to use in containers — fails gracefully.
+
+`--timezone ZONE`: Set the system timezone during provisioning (e.g. `America/New_York`, `UTC`). Uses `timedatectl set-timezone`. Safe to use in containers — fails gracefully.
+
+`--locale LOCALE`: Set the system locale during provisioning (e.g. `en_US.UTF-8`). Uses `localectl set-locale LANG=...`. Safe to use in containers — fails gracefully.
+
+`--ssh-key-file FILE`: Read an SSH public key from a file and configure it identically to `--ssh-key`. Use this instead of `--ssh-key` when you want to keep the key off the command line. Mutually exclusive with `--ssh-key`.
+
+`--rtk`: Install RTK (token-optimized CLI proxy) from the latest upstream GitHub release RPM after SHA-256 checksum verification. RTK is not installed by default.
 
 `--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
 
@@ -144,7 +170,7 @@ pnpm optional with --mise selector
 bun optional with --mise selector
 python optional with --mise selector
 starship
-rtk
+rtk optional with --rtk
 LazyVim starter
 Tailscale optional
 Netbird optional
@@ -167,7 +193,7 @@ Fedora DNF packages are preferred whenever available.
 
 `act-cli` is installed from the upstream-documented `goncalossilva/act` COPR and provides the `act` command.
 
-`rtk` is installed on x86_64 from the latest upstream GitHub release RPM after SHA-256 verification.
+`rtk` is installed on x86_64 only when `--rtk` is selected, from the latest upstream GitHub release RPM after SHA-256 verification.
 
 User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are installed only when requested through `--mise` selectors. The installer runs `mise use --pin -g <selector>` so resolved global versions are pinned at provisioning time. Future runtime changes are owned by the user through mise.
 
@@ -389,6 +415,8 @@ tdl "rtk --help" bash
 `tdlm <cmd> [cmd2]` runs `tdl` in a new tmux window for every subdirectory.
 
 `tsl <n> <cmd>` tiles `n` panes running the same command.
+
+The tmux layout functions are inspired by [Basecamp's omarchy](https://github.com/basecamp/omarchy).
 
 ```bash
 tsl 4 bash

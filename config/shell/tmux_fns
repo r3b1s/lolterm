@@ -1,3 +1,6 @@
+# Tmux dev layout functions
+# Inspired by https://github.com/basecamp/omarchy
+#
 # Create a Tmux Dev Layout with editor, ai, and terminal
 # Usage: tdl <cx|codex|other_ai> [<second_ai>]
 tdl() {

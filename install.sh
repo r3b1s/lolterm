@@ -17,6 +17,13 @@ MISE=false
 MISE_SELECTORS=""
 KALI_CONTAINER=false
 CLAUDE=false
+GIT_NAME=""
+GIT_EMAIL=""
+HOSTNAME_CFG=""
+TIMEZONE=""
+LOCALE=""
+SSH_KEY_FILE=""
+RTK=false
 
 usage() {
   cat <<'USAGE'
@@ -48,6 +55,13 @@ Options:
                      headless XRDP logins
   --claude            Install Claude Code from the Anthropic DNF repository
   --kali-container    Install Kali Linux Podman container with security tools
+  --git-name NAME     Set the global Git user.name for headless provisioning
+  --git-email EMAIL   Set the global Git user.email for headless provisioning
+  --hostname NAME     Set the system hostname during provisioning
+  --timezone ZONE     Set the system timezone during provisioning
+  --locale LOCALE     Set the system locale during provisioning
+  --ssh-key-file FILE Read an SSH public key from a file
+  --rtk               Install RTK (token-optimized CLI proxy)
   --help             Show this help
 USAGE
 }
@@ -123,6 +137,55 @@ while [[ $# -gt 0 ]]; do
       ;;
     --claude) CLAUDE=true; shift ;;
     --kali-container) KALI_CONTAINER=true; shift ;;
+    --git-name)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --git-name" >&2
+        exit 1
+      fi
+      GIT_NAME="$2"
+      shift 2
+      ;;
+    --git-email)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --git-email" >&2
+        exit 1
+      fi
+      GIT_EMAIL="$2"
+      shift 2
+      ;;
+    --hostname)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --hostname" >&2
+        exit 1
+      fi
+      HOSTNAME_CFG="$2"
+      shift 2
+      ;;
+    --timezone)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --timezone" >&2
+        exit 1
+      fi
+      TIMEZONE="$2"
+      shift 2
+      ;;
+    --locale)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --locale" >&2
+        exit 1
+      fi
+      LOCALE="$2"
+      shift 2
+      ;;
+    --ssh-key-file)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing value for --ssh-key-file" >&2
+        exit 1
+      fi
+      SSH_KEY_FILE="$2"
+      shift 2
+      ;;
+    --rtk) RTK=true; shift ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -173,6 +236,23 @@ fi
 if [[ -n "$USER_PASSWORD" ]] && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
   echo "--user-password and --user-password-file require --remote-desktop xrdp." >&2
   exit 1
+fi
+
+if [[ -n "$SSH_KEY" && -n "$SSH_KEY_FILE" ]]; then
+  echo "Use only one of --ssh-key or --ssh-key-file." >&2
+  exit 1
+fi
+
+if [[ -n "$SSH_KEY_FILE" ]]; then
+  if [[ ! -r "$SSH_KEY_FILE" ]]; then
+    echo "SSH key file is not readable: $SSH_KEY_FILE" >&2
+    exit 1
+  fi
+  SSH_KEY="$(<"$SSH_KEY_FILE")"
+  if [[ -z "$SSH_KEY" ]]; then
+    echo "SSH key file is empty: $SSH_KEY_FILE" >&2
+    exit 1
+  fi
 fi
 
 # ---------- Resolve target user (handles sudo) ----------
@@ -266,35 +346,10 @@ if $KALI_CONTAINER; then
   install_kali_container
 fi
 
-# ---------- Install rtk ----------
-install_rtk() {
-  if ! command -v rtk &>/dev/null; then
-    section "Installing rtk..."
-
-    local arch rpm_name release_json version download_base tmpdir
-    arch="$(uname -m)"
-    tmpdir="$(mktemp -d)"
-
-    if [[ "$arch" != "x86_64" ]]; then
-      echo "rtk release RPM installation is currently supported only on x86_64." >&2
-      echo "Skipping rtk because no verified Fedora RPM path is defined for $arch." >&2
-      rm -rf "$tmpdir"
-      return 0
-    fi
-
-    release_json="$(curl -fsSL https://api.github.com/repos/rtk-ai/rtk/releases/latest)"
-    version="$(jq -r '.tag_name | sub("^v"; "")' <<<"$release_json")"
-    rpm_name="rtk-${version}-1.x86_64.rpm"
-    download_base="https://github.com/rtk-ai/rtk/releases/download/v${version}"
-
-    curl -fsSLo "$tmpdir/$rpm_name" "$download_base/$rpm_name"
-    curl -fsSLo "$tmpdir/checksums.txt" "$download_base/checksums.txt"
-    (cd "$tmpdir" && grep -E "[[:space:]]+$rpm_name$" checksums.txt | sha256sum -c -)
-    sudo dnf install -y "$tmpdir/$rpm_name"
-    rm -rf "$tmpdir"
-  fi
-}
-install_rtk
+# ---------- Optional AI tools ----------
+if $RTK; then
+  install_rtk
+fi
 
 # ---------- Install dotfiles ----------
 install_dotfiles() {
@@ -449,6 +504,27 @@ setup_ssh_key() {
 }
 setup_ssh_key
 
+# ---------- Git configuration ----------
+configure_git() {
+  if [[ -n "$GIT_NAME" ]]; then
+    section "Configuring Git name..."
+    as_user git config --global user.name "$GIT_NAME"
+    echo "  user.name = $GIT_NAME"
+  fi
+
+  if [[ -n "$GIT_EMAIL" ]]; then
+    section "Configuring Git email..."
+    as_user git config --global user.email "$GIT_EMAIL"
+    echo "  user.email = $GIT_EMAIL"
+  fi
+
+  if [[ -n "$GIT_NAME" || -n "$GIT_EMAIL" ]]; then
+    as_user git config --global init.defaultBranch main
+    echo "  init.defaultBranch = main"
+  fi
+}
+configure_git
+
 setup_headless_xrdp_password() {
   [[ "$REMOTE_DESKTOP" == "xrdp" ]] || return 0
   [[ -n "$USER_PASSWORD" ]] || return 0
@@ -584,6 +660,27 @@ enable_services() {
 }
 enable_services
 
+# ---------- System configuration ----------
+configure_system_settings() {
+  if [[ -n "$HOSTNAME_CFG" ]]; then
+    section "Configuring hostname..."
+    hostnamectl set-hostname "$HOSTNAME_CFG" || true
+    echo "  hostname = $HOSTNAME_CFG"
+  fi
+
+  if [[ -n "$TIMEZONE" ]]; then
+    section "Configuring timezone..."
+    timedatectl set-timezone "$TIMEZONE" || true
+    echo "  timezone = $TIMEZONE"
+  fi
+
+  if [[ -n "$LOCALE" ]]; then
+    section "Configuring locale..."
+    localectl set-locale "LANG=$LOCALE" || true
+    echo "  locale = $LOCALE"
+  fi
+}
+
 # ---------- Allow rootless containers to bind low ports ----------
 configure_unprivileged_ports() {
   local current
@@ -603,6 +700,8 @@ configure_unprivileged_ports
 if $ENABLE_HOST_FIREWALL; then
   configure_host_firewall "$([[ "$REMOTE_DESKTOP" == "xrdp" ]] && echo true || echo false)"
 fi
+
+configure_system_settings
 
 # ---------- Interactive or headless ----------
 if $HEADLESS; then
