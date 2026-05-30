@@ -44,6 +44,18 @@ Document every package source change in `README.md` and `SECURITY.md`.
 
 `config/` contains user and optional root dotfiles copied by the installer.
 
+## Development
+
+### Testing local changes
+
+The installer clones from the remote repository by default. To test local changes without pushing, set `LOLTERM_INSTALLER_DIR` to your local checkout:
+
+```bash
+LOLTERM_INSTALLER_DIR=/path/to/lolterm ./install.sh <flags>
+```
+
+This skips the clone and sources `install/*.sh` directly from your working tree. The script has `set -euo pipefail` — a command failure in any sourced module will abort the entire install.
+
 ## Headless Podman Container Patterns
 
 When installing Podman containers (via quadlet) during headless provisioning, be aware of these constraints:
