@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lolterm-kali-rebuild` is now copied to `~/.local/bin/` during install (was missing from the installer bin copy list).
 - Removed `2>/dev/null` from the quadlet `start` command so systemctl error output is visible in terminal and debug logs instead of being silently swallowed.
 - Documented `LOLTERM_INSTALLER_DIR` development workflow in AGENTS.md for testing local changes without pushing to the remote repository.
+- Replaced `:Z` volume mount flags with `SecurityLabelDisable=true` in the Kali container quadlet. Rootless podman cannot relabel `user_home_t` paths to `container_file_t` via `:Z` on SELinux-enforcing systems, which caused the quadlet service to fail with exit code 126. The podman-recommended approach for rootless containers mounting user home directories is to disable SELinux separation via `SecurityLabelDisable=true`, which works without relabeling the host filesystem.
 
 ### Security
 - (No security updates yet)
