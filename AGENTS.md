@@ -36,9 +36,48 @@ Document every package source change in `README.md` and `SECURITY.md`.
 
 `install/mise.sh` handles optional mise installation and user-selected global mise tools.
 
+`install/kali-container.sh` handles optional Kali Linux Podman container with tool wrappers and quadlet auto-start.
+
+`install/ai.sh` handles optional AI tooling (Claude Code, RTK).
+
 `bin/` contains helper scripts copied to `$TARGET_HOME/.local/bin`.
 
 `config/` contains user and optional root dotfiles copied by the installer.
+
+## Headless Podman Container Patterns
+
+When installing Podman containers (via quadlet) during headless provisioning, be aware of these constraints:
+
+### D-Bus is not available in headless/root contexts
+
+`systemctl --user` communicates with the user's systemd instance over D-Bus. During headless provisioning (running as root via sudo or directly), there is no D-Bus session — commands like `systemctl --user daemon-reload` silently fail.
+
+**Fix**: Use `systemctl --user --machine="$TARGET_USER@.host"` instead of bare `systemctl --user`. This connects via the systemd-stdio-bridge without needing a D-Bus session. Requires systemd ≥ 247 (all Fedora 44 systems).
+
+```bash
+systemctl --user --machine="$TARGET_USER@.host" daemon-reload
+systemctl --user --machine="$TARGET_USER@.host" start kali.service
+```
+
+### Quadlet service naming
+
+`kali.container` → `kali.service` (not `kali-container.service`). The service name is derived from the filename minus the `.container` extension. Do not use `systemctl enable` on quadlet-generated units — they are transient. The `[Install]` section is applied at generation time by the quadlet generator.
+
+### Wrapper auto-start
+
+Tool wrappers that exec into a container should include a preflight check that auto-starts the container if it exists but isn't running:
+
+```bash
+if ! podman container exists kali 2>/dev/null; then
+  echo "Container not found. Run: rebuild-command" >&2
+  exit 1
+fi
+if [[ "$(podman inspect --format '{{.State.Status}}' kali 2>/dev/null)" != "running" ]]; then
+  podman start kali >/dev/null
+fi
+```
+
+This makes the wrappers resilient in headless environments where the quadlet service may not have been started during provisioning.
 
 ## Flags
 
