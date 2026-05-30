@@ -8,9 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added `--hostname`, `--timezone`, and `--locale` installer flags for non-interactive system configuration (hostname, timezone, locale) during headless provisioning. Commands are wrapped in `|| true` for container environments.
+- Added `--ssh-key-file FILE` installer flag to read an SSH public key from a file as an alternative to `--ssh-key`, keeping keys off the command line.
+- Added `--rtk` installer flag for explicit RTK installation from the upstream GitHub release RPM.
+- Added new `system-config-flags` and `ssh-key-file-flag` OpenSpec capability specs.
+- Merged RTK capability into the `optional-ai-module` OpenSpec spec.
+- Added omarchy attribution to the tmux layout functions.
 - Lowered the unprivileged port floor to 1 so rootless Podman containers can bind any port including well-known ports below 1024. The sysctl setting is persisted via `/etc/sysctl.d/99-lolterm-unprivileged-ports.conf`.
 
 ### Changed
+- RTK is no longer installed by default. It is now opt-in behind the `--rtk` flag, and its install logic has moved from `install.sh` into `install/ai.sh` alongside the Claude Code module.
+- Removed the `cat='bat'` default alias from shell aliases. `bat` remains installed and the `ff` fzf preview alias uses `bat` directly.
 - Migrated Kali container autostart from `podman generate systemd` to a Podman quadlet (`kali.container`). The quadlet enables `loginctl enable-linger` so the container starts at boot without requiring user login, and `lolterm-kali-rebuild` now restarts the quadlet service instead of manually re-creating the container.
 
 ### Fixed
