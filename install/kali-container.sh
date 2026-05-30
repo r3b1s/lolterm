@@ -62,7 +62,7 @@ setup_kali_quadlet() {
   # Use --machine to connect to the user's systemd instance from any context
   # (no D-Bus session needed — systemd-stdio-bridge handles it)
   if systemctl --user --machine="$TARGET_USER@.host" daemon-reload 2>/dev/null; then
-    systemctl --user --machine="$TARGET_USER@.host" start kali.service 2>/dev/null || {
+    systemctl --user --machine="$TARGET_USER@.host" start kali.service || {
       echo "  Warning: quadlet generated but service did not start"
       echo "  Start manually after login: systemctl --user start kali.service"
     }

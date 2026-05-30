@@ -475,12 +475,14 @@ install_bins() {
   cp -f "$INSTALLER_DIR/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-install-desktop"
   cp -f "$INSTALLER_DIR/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-configure-firewall"
   cp -f "$INSTALLER_DIR/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-update"
+  cp -f "$INSTALLER_DIR/bin/lolterm-kali-rebuild" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild"
   rm -f "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild"
   echo "  lolterm-setup"
   echo "  lolterm-install-desktop"
   echo "  lolterm-configure-firewall"
   echo "  lolterm-update"
+  echo "  lolterm-kali-rebuild"
 }
 install_bins
 
