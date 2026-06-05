@@ -134,7 +134,7 @@ To combine a container runtime with Kali container:
 
 **Terminal**: tmux, starship, act, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
 
-**Editor**: Neovim with LazyVim. Cursor stays centered while navigating.
+**Editor**: Neovim with LazyVim and oxocarbon, plus a separate `nvim-notes` LazyVim profile available through `notes`. Cursor stays centered while navigating.
 
 **Git**: git and GitHub CLI.
 
@@ -191,6 +191,7 @@ python optional with --mise selector
 starship
 rtk optional with --rtk
 LazyVim starter
+nvim-notes LazyVim profile
 Tailscale optional
 Netbird optional
 lolterm NetBird SELinux policy optional
@@ -225,7 +226,7 @@ Fedora DNF packages are preferred whenever available.
 
 User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are installed only when requested through `--mise` selectors. The installer runs `mise use --pin -g <selector>` so resolved global versions are pinned at provisioning time. Future runtime changes are owned by the user through mise.
 
-LazyVim is installed from the official LazyVim starter repository.
+LazyVim is installed from the official LazyVim starter repository for both the baseline `nvim` profile and the separate `nvim-notes` profile. lolterm provides local overrides for both profiles, including oxocarbon theming.
 
 NetBird provisioning installs a small local SELinux policy module on SELinux-enabled systems. The module gives NetBird its own `netbird_t` service domain and permits only that domain to transition into the authenticated user's shell domain for NetBird SSH.
 
@@ -438,6 +439,7 @@ eff       open fzf result in editor
 
 # tools
 n         nvim (opens cwd if no args)
+notes     nvim with NVIM_APPNAME=nvim-notes
 t         tmux (attach or new)
 
 # git
@@ -512,6 +514,7 @@ config/tmux/tmux.conf              tmux
 config/shell/aliases               shell aliases
 config/shell/tmux_fns              tdl, tdlm, tsl
 config/nvim/lua/config/            LazyVim overrides
+config/nvim-notes/                 nvim-notes LazyVim profile overrides
 bin/lolterm-setup                  interactive post-install config
 bin/lolterm-install-desktop        installs optional XFCE/XRDP desktop later
 bin/lolterm-configure-firewall     configures the optional host firewall later

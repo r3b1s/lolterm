@@ -413,7 +413,17 @@ install_dotfiles() {
   cp -f "$INSTALLER_DIR/config/nvim/lua/config/options.lua" "$TARGET_HOME/.config/nvim/lua/config/options.lua"
   cp -f "$INSTALLER_DIR/config/nvim/lua/config/keymaps.lua" "$TARGET_HOME/.config/nvim/lua/config/keymaps.lua"
   cp -f "$INSTALLER_DIR/config/nvim/lua/plugins/colorscheme.lua" "$TARGET_HOME/.config/nvim/lua/plugins/colorscheme.lua"
+  cp -f "$INSTALLER_DIR/config/nvim/lua/plugins/bullets.lua" "$TARGET_HOME/.config/nvim/lua/plugins/bullets.lua"
   echo "  Neovim (LazyVim + oxocarbon)"
+
+  # Neovim notes profile (LazyVim)
+  if [ ! -d "$TARGET_HOME/.config/nvim-notes" ]; then
+    as_user git clone --depth 1 https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim-notes"
+    rm -rf "$TARGET_HOME/.config/nvim-notes/.git"
+  fi
+  as_user mkdir -p "$TARGET_HOME/.config/nvim-notes"
+  cp -R "$INSTALLER_DIR/config/nvim-notes"/. "$TARGET_HOME/.config/nvim-notes"/
+  echo "  Neovim notes profile (LazyVim + oxocarbon)"
 
   # .bashrc additions
   if ! grep -qF "# ----- lolterm shell config -----" "$TARGET_HOME/.bashrc" 2>/dev/null; then
