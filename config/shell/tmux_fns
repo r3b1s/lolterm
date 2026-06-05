@@ -98,3 +98,20 @@ tsl() {
 
   tmux select-pane -t "${panes[0]}"
 }
+
+# Create 3 vertical panes with roughly equal width (33/34/33)
+# Usage: tvl
+tvl() {
+  [[ -z $TMUX ]] && { echo "You must start tmux to use tvl."; return 1; }
+
+  local current_dir="${PWD}"
+
+  tmux rename-window -t "$TMUX_PANE" "$(basename "$current_dir")"
+
+  # Create two additional vertical panes
+  tmux split-window -h -t "$TMUX_PANE" -c "$current_dir"
+  tmux split-window -h -t "$TMUX_PANE" -c "$current_dir"
+
+  # Even out all pane widths using the even-horizontal layout
+  tmux select-layout -t "$TMUX_PANE" even-horizontal
+}
