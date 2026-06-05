@@ -15,6 +15,8 @@ USER_PASSWORD=""
 USER_PASSWORD_FILE=""
 MISE=false
 MISE_SELECTORS=""
+DOCKER=false
+PODMAN=false
 KALI_CONTAINER=false
 CLAUDE=false
 GIT_NAME=""
@@ -62,6 +64,8 @@ Options:
   --timezone ZONE     Set the system timezone during provisioning
   --locale LOCALE     Set the system locale during provisioning
   --ssh-key-file FILE Read an SSH public key from a file
+  --docker            Install Docker CE with lazydocker
+  --podman            Install Podman from Fedora DNF packages
   --rtk               Install RTK (token-optimized CLI proxy)
   --debug FILE        Log full install output to FILE
   --help             Show this help
@@ -137,6 +141,8 @@ while [[ $# -gt 0 ]]; do
       USER_PASSWORD_FILE="$2"
       shift 2
       ;;
+    --docker) DOCKER=true; shift ;;
+    --podman) PODMAN=true; shift ;;
     --claude) CLAUDE=true; shift ;;
     --kali-container) KALI_CONTAINER=true; shift ;;
     --git-name)
@@ -200,6 +206,11 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+if $DOCKER && $PODMAN; then
+  echo "--docker and --podman are mutually exclusive." >&2
+  exit 1
+fi
 
 if ! $HEADLESS && { [[ -n "$NETBIRD_SETUP_KEY" ]] || [[ -n "$TAILSCALE_AUTH_KEY" ]]; }; then
   echo "VPN provisioning keys require --headless." >&2
@@ -330,6 +341,7 @@ source "$INSTALLER_DIR/install/packages.sh"
 source "$INSTALLER_DIR/install/mise.sh"
 source "$INSTALLER_DIR/install/kali-container.sh"
 source "$INSTALLER_DIR/install/ai.sh"
+source "$INSTALLER_DIR/install/container-runtime.sh"
 
 # ---------- Install packages ----------
 install_packages
@@ -347,6 +359,11 @@ configure_user_shell() {
   fi
 }
 configure_user_shell
+
+# ---------- Optional container runtime module ----------
+if $DOCKER || $PODMAN; then
+  install_container_runtime
+fi
 
 # ---------- Optional mise runtime module ----------
 if $MISE; then

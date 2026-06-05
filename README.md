@@ -49,10 +49,19 @@ For Claude Code (AI coding agent in the terminal):
 bash install.sh --claude
 ```
 
-For a Kali Linux security tools environment inside a Podman container:
+For a container runtime (Docker CE with lazydocker, or Podman):
+
+```bash
+bash install.sh --docker
+bash install.sh --podman
+```
+
+For a Kali Linux security tools environment inside a container (auto-detects Docker or Podman):
 
 ```bash
 bash install.sh --kali-container
+bash install.sh --docker --kali-container
+bash install.sh --podman --kali-container
 ```
 
 To add the desktop later on an existing lolterm host:
@@ -89,7 +98,17 @@ Log out and back in when installation completes.
 
 `--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
 
-`--kali-container`: Install a Kali Linux Podman container with a curated set of security testing tools. Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet for container lifecycle and boot-start via systemd --user with linger, and generates native shell wrapper scripts for common tools. GUI tools (Wireshark, Maltego, etc.) get XFCE menu entries with X11 display forwarding. Run `kali-sh` for an interactive Kali shell.
+`--docker`: Install Docker CE from the official Docker repository. Installs `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, and `docker-compose-plugin`. Enables SELinux support in the Docker daemon, starts `docker.service`, and installs `lazydocker` from the latest GitHub release (SHA-256 verified). Mutually exclusive with `--podman`.
+
+`--podman`: Install Podman from Fedora DNF packages. Installs `podman`, `podman-docker`, and `podman-compose`. Enables the Podman socket for the target user. Mutually exclusive with `--docker`.
+
+To combine a container runtime with Kali container:
+
+`--docker --kali-container`: Use Docker as the Kali container runtime. Generates Docker Compose lifecycle config and `docker exec`-based tool wrappers.
+
+`--podman --kali-container`: Use Podman as the Kali container runtime (default fallback).
+
+`--kali-container`: Install a Kali Linux container with security testing tools. The container runtime is auto-detected (Docker preferred, Podman fallback). Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs lifecycle management (Docker Compose or Podman quadlet), and generates native shell wrapper scripts for common tools. GUI tools (Wireshark, Maltego, etc.) get XFCE menu entries with X11 display forwarding. Run `kali-sh` for an interactive Kali shell.
 
 `--git-name NAME`: Set the global Git `user.name` during provisioning. Useful in headless mode to skip the interactive `lolterm-setup` prompt. Also sets `init.defaultBranch` to `main`.
 
@@ -179,6 +198,15 @@ lolterm NetBird SELinux policy optional
 xrdp optional
 xorgxrdp optional
 xrdp-selinux optional
+docker-ce optional with --docker
+docker-ce-cli optional with --docker
+containerd.io optional with --docker
+docker-buildx-plugin optional with --docker
+docker-compose-plugin optional with --docker
+lazydocker optional with --docker
+podman optional with --podman
+podman-docker optional with --podman
+podman-compose optional with --podman
 claude-code optional with --claude
 firewalld optional with --enable-host-firewall
 ```
@@ -205,7 +233,7 @@ XFCE is installed from Fedora's `xfce-desktop` package group when `--xfce-deskto
 
 `claude-code` is installed only when `--claude` is selected, from the Anthropic official signed DNF repository (https://code.claude.com/docs/en/setup#install-with-linux-package-managers). Trust basis: official project-owned repository with GPG signing. Repository fingerprint: `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE`.
 
-Docker, lazydocker, lazygit, uv, and global npm coding agents are intentionally not installed right now.
+lazygit, uv, and global npm coding agents are intentionally not installed right now.
 
 ## Desktop and Remote Desktop
 
@@ -263,9 +291,19 @@ In headless installs, `--enable-host-firewall` requires an explicit access path:
 
 ## Kali Container
 
-`--kali-container` installs a Kali Linux environment inside a rootless Podman container with native shell integration and GUI tool support for XFCE desktops.
+`--kali-container` installs a Kali Linux environment inside a container (Docker or Podman) with native shell integration and GUI tool support for XFCE desktops.
 
-The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs a Podman quadlet (`~/.config/containers/systemd/kali.container`) for container lifecycle management and boot-start via systemd --user with linger, and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
+The container runtime is auto-detected at install time: Docker is preferred when available, followed by Podman. If neither is found, Podman is installed as a fallback. The detected runtime is stored in `~/.local/share/lolterm/kali-container/runtime.txt`.
+
+### Docker Path
+
+When Docker is the runtime, the installer creates a `compose.yaml` at `~/.config/containers/systemd/compose.yaml` and manages the container via `docker compose up -d`. Tool wrappers use `docker exec` and auto-start with `docker start`. lazydocker is installed alongside.
+
+### Podman Path
+
+When Podman is the runtime, the installer follows the traditional path: a Podman quadlet (`~/.config/containers/systemd/kali.container`) for container lifecycle and boot-start via systemd --user with linger, and tool wrappers using `podman exec`.
+
+The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling` and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
 
 The container runs privileged (rootless, scoped to the user namespace) to support raw sockets, packet injection, and monitor-mode tools. Privileged-tier tools additionally pass `--privileged` at exec time.
 

@@ -1,0 +1,18 @@
+# Kali Linux container (lolterm) — Docker Compose equivalent of kali.container
+# Installed to ~/.config/containers/systemd/compose.yaml when Docker is the runtime.
+# Started via: docker compose up -d
+#
+# The container itself is not privileged. Tool wrappers for tools that need
+# raw sockets or packet injection pass --privileged at exec time, providing
+# per-process escalation without elevating the entire container.
+
+services:
+  kali:
+    image: localhost/lolterm-kali
+    container_name: kali
+    network_mode: host
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ~:/root:rw
+    command: sleep infinity
+    restart: always

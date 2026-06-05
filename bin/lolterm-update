@@ -46,6 +46,38 @@ update_kali_container() {
   fi
 }
 
+update_lazydocker() {
+  if ! command -v lazydocker &>/dev/null; then
+    return 0
+  fi
+  echo "Updating lazydocker..."
+
+  local arch tmpdir
+  arch="$(uname -m)"
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  local release_json version tarball_name download_base
+  release_json="$(curl -fsSL https://api.github.com/repos/jesseduffield/lazydocker/releases/latest)"
+  version="$(jq -r '.tag_name | sub("^v"; "")' <<<"$release_json")"
+
+  case "$arch" in
+    x86_64)  arch="x86_64" ;;
+    aarch64) arch="arm64" ;;
+    *) echo "Unsupported architecture for lazydocker: $arch" >&2; return 1 ;;
+  esac
+
+  tarball_name="lazydocker_${version}_Linux_${arch}.tar.gz"
+  download_base="https://github.com/jesseduffield/lazydocker/releases/download/v${version}"
+
+  curl -fsSLo "$tmpdir/$tarball_name" "$download_base/$tarball_name"
+  curl -fsSLo "$tmpdir/checksums.txt" "$download_base/checksums.txt"
+  (cd "$tmpdir" && grep -E "[[:space:]]+$tarball_name$" checksums.txt | sha256sum -c -)
+  tar -xzf "$tmpdir/$tarball_name" -C "$tmpdir"
+  sudo install -m 755 "$tmpdir/lazydocker" /usr/local/bin/lazydocker
+  echo "lazydocker updated to v${version}"
+}
+
 update_rtk() {
   echo "Updating rtk..."
   arch="$(uname -m)"
@@ -71,6 +103,7 @@ update_rtk() {
 }
 
 update_dnf_packages
+update_lazydocker
 update_rtk
 update_kali_container
 

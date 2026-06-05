@@ -153,3 +153,70 @@ The system SHALL maintain a `tools-gui.txt` in the state directory alongside the
 #### Scenario: State directory includes GUI tools
 - **WHEN** the state directory is populated
 - **THEN** `tools-gui.txt` is present and follows the same line-by-line format as `tools.txt`
+
+## MODIFIED Requirements
+
+### Requirement: Container runtime is auto-detected (MODIFIED)
+
+The system SHALL detect the available container runtime at install time. Detection order: Docker CE (via `rpm -q docker-ce`) first, then Podman. If neither is found, Podman SHALL be installed as a fallback. The detected runtime SHALL be stored in `runtime.txt` in the state directory.
+
+#### Scenario: Docker CE detected (MODIFIED)
+- **WHEN** `docker-ce` RPM is installed
+- **THEN** `KALI_RUNTIME` is set to `docker` and all lifecycle, wrapper, and shell integration commands use Docker CLI
+
+#### Scenario: Podman detected (MODIFIED)
+- **WHEN** `docker-ce` RPM is not installed but `podman` is available
+- **THEN** `KALI_RUNTIME` is set to `podman` and all lifecycle, wrapper, and shell integration commands use Podman CLI
+
+#### Scenario: No runtime found, Podman installed as fallback (MODIFIED)
+- **WHEN** neither Docker CE nor Podman is installed
+- **THEN** Podman and podman-docker are installed via DNF, `KALI_RUNTIME` is set to `podman`
+
+### Requirement: Runtime choice drives lifecycle, wrappers, and shell integration (MODIFIED)
+
+The system SHALL adapt container lifecycle, tool wrappers, and shell integration based on the detected runtime.
+
+#### Scenario: Docker lifecycle uses Compose
+- **WHEN** `KALI_RUNTIME` is `docker`
+- **THEN** the system SHALL install `compose.yaml` to `~/.config/containers/systemd/compose.yaml` and start the container with `docker compose up -d`
+
+#### Scenario: Podman lifecycle uses quadlet
+- **WHEN** `KALI_RUNTIME` is `podman`
+- **THEN** the system SHALL install `kali.container` to `~/.config/containers/systemd/kali.container` and manage the container via systemd --user
+
+#### Scenario: Docker wrappers use docker exec
+- **WHEN** `KALI_RUNTIME` is `docker`
+- **THEN** tool wrapper scripts SHALL use `docker exec` and `docker start` for auto-start
+
+#### Scenario: Podman wrappers use podman exec
+- **WHEN** `KALI_RUNTIME` is `podman`
+- **THEN** tool wrapper scripts SHALL use `podman exec` and `podman start` for auto-start
+
+#### Scenario: Docker shell integration uses docker exec
+- **WHEN** `KALI_RUNTIME` is `docker`
+- **THEN** the `kali()` and `kali-sh()` functions in `.bashrc` SHALL use `docker exec`
+
+#### Scenario: Podman shell integration uses podman exec
+- **WHEN** `KALI_RUNTIME` is `podman`
+- **THEN** the `kali()` and `kali-sh()` functions in `.bashrc` SHALL use `podman exec`
+
+### Requirement: Runtime is stored for rebuild (ADDED)
+
+The system SHALL persist the detected runtime to `~/.local/share/lolterm/kali-container/runtime.txt` so that `lolterm-kali-rebuild` can regenerate the correct lifecycle configuration and wrappers.
+
+#### Scenario: Runtime file is written during install
+- **WHEN** the Kali container module runs
+- **THEN** `runtime.txt` is written to the state directory containing the value of `KALI_RUNTIME`
+
+#### Scenario: Rebuild reads runtime file
+- **WHEN** `lolterm-kali-rebuild` is executed
+- **THEN** the script reads `runtime.txt` to determine which runtime configuration to regenerate
+
+### Requirement: State directory includes runtime config (ADDED)
+
+The system SHALL include `compose.yaml` and `runtime.txt` in the state directory alongside existing config files.
+
+#### Scenario: State directory includes compose and runtime
+- **WHEN** the module runs
+- **THEN** `compose.yaml` and `runtime.txt` are present in `~/.local/share/lolterm/kali-container/`
+- **THEN** `compose.yaml` is copied from the installer's Kali container directory

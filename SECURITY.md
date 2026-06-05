@@ -26,11 +26,17 @@ Every package source change must be documented in `README.md` and this file.
 
 `rtk` is installed on x86_64 only when `--rtk` is selected, from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
 
+`docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, and `docker-compose-plugin` are installed only when `--docker` is selected, from the official Docker CE RPM repository. Trust basis: official project-owned RPM repository with GPG signing. Repository GPG fingerprint: `060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35`. Update command: `sudo dnf upgrade docker-ce docker-ce-cli containerd.io`.
+
+`lazydocker` is installed only when `--docker` is selected, from the latest upstream GitHub release tarball. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
+
+`podman`, `podman-docker`, and `podman-compose` are installed only when `--podman` is selected, from Fedora DNF packages. Trust basis: Fedora DNF package. Update command: `sudo dnf upgrade podman`.
+
 `mise` is optional and installed only when `--mise` is selected, from the `jdxcode/mise` COPR documented by mise as the Fedora/RHEL install path. Trust basis: upstream maintainer-owned COPR. Update command: `sudo dnf upgrade mise`.
 
 User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are optional and installed by mise only when requested with `--mise` selectors. The installer pins resolved global versions with `mise use --pin -g <selector>`. Trust basis: user-requested mise runtime management. Update command: user-managed `mise upgrade` or explicit `mise use --pin -g <selector>` changes after provisioning.
 
-LazyVim is installed by cloning the official LazyVim starter repository. Trust basis: upstream documented starter repository. Updates are handled by Neovim/LazyVim plugin tooling after installation.
+LazyVim is installed by cloning the official LazyVim starter repository for both the baseline `nvim` profile and the separate `nvim-notes` profile. Trust basis: upstream documented starter repository. lolterm copies local profile overrides, including oxocarbon theming; plugin updates are handled by Neovim/LazyVim plugin tooling after installation.
 
 Netbird is optional and installed from the official Netbird RPM repository when selected in `lolterm-setup` or provisioned with `--netbird-setup-key` in headless mode. The repo uses GPG and repo metadata checks.
 
@@ -59,8 +65,6 @@ The default installer clones `https://github.com/r3b1s/lolterm.git` into a tempo
 Smoke tests run in privileged Fedora 44 systemd containers created by `ci/smoke/run.sh`. The initial smoke layer validates package, file, user, mise, SSH, and XRDP service behavior; it intentionally excludes VPN provisioning and host firewall behavior because those need higher-fidelity host/network validation. The desktop smoke lane installs a container-only `udevadm` no-op shim before package installation so Fedora desktop package scriptlets do not fail while trying to trigger host-backed `/sys` uevents from inside the container.
 
 ## Removed Or Deferred Sources
-
-Docker Engine and lazydocker are not installed. Future support should be added behind explicit Docker Engine vs Podman configuration.
 
 lazygit is not installed. Do not add COPR/AUR-style sources unless maintainer ownership is substantiated.
 
