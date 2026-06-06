@@ -2,9 +2,9 @@
 # Inspired by https://github.com/basecamp/omarchy
 #
 # Create a Tmux Dev Layout with editor, ai, and terminal
-# Usage: tdl <cx|codex|other_ai> [<second_ai>]
+# Usage: tdl <cx|codex|c|other_ai> [<second_ai>]
 tdl() {
-  [[ -z $1 ]] && { echo "Usage: tdl <cx|codex|other_ai> [<second_ai>]"; return 1; }
+  [[ -z $1 ]] && { echo "Usage: tdl <cx|codex|c|other_ai> [<second_ai>]"; return 1; }
   [[ -z $TMUX ]] && { echo "You must start tmux to use tdl."; return 1; }
 
   local current_dir="${PWD}"
@@ -40,10 +40,37 @@ tdl() {
   tmux select-pane -t "$editor_pane"
 }
 
+# Create a Tmux Dev Square layout with editor, diff watch, terminal, and shell
+# Usage: tds
+tds() {
+  [[ -n $1 ]] && { echo "Usage: tds"; return 1; }
+  [[ -z $TMUX ]] && { echo "You must start tmux to use tds."; return 1; }
+
+  local current_dir="${PWD}"
+  local editor_pane diff_pane terminal_pane harness_pane
+
+  editor_pane="$TMUX_PANE"
+
+  tmux rename-window -t "$editor_pane" "$(basename "$current_dir")"
+
+  terminal_pane=$(tmux split-window -v -p 50 -t "$editor_pane" -c "$current_dir" -P -F '#{pane_id}')
+  diff_pane=$(tmux split-window -h -p 50 -t "$editor_pane" -c "$current_dir" -P -F '#{pane_id}')
+  harness_pane=$(tmux split-window -h -p 50 -t "$terminal_pane" -c "$current_dir" -P -F '#{pane_id}')
+
+  tmux send-keys -t "$editor_pane" -l "nvim ."
+  tmux send-keys -t "$editor_pane" C-m
+  tmux send-keys -t "$diff_pane" -l "hunk diff --watch"
+  tmux send-keys -t "$diff_pane" C-m
+  tmux send-keys -t "$harness_pane" -l "${HARNESS:-}"
+  tmux send-keys -t "$harness_pane" C-m
+
+  tmux select-pane -t "$editor_pane"
+}
+
 # Create multiple tdl windows with one per subdirectory in the current directory
-# Usage: tdlm <cx|codex|other_ai> [<second_ai>]
+# Usage: tdlm <cx|codex|c|other_ai> [<second_ai>]
 tdlm() {
-  [[ -z $1 ]] && { echo "Usage: tdlm <cx|codex|other_ai> [<second_ai>]"; return 1; }
+  [[ -z $1 ]] && { echo "Usage: tdlm <cx|codex|c|other_ai> [<second_ai>]"; return 1; }
   [[ -z $TMUX ]] && { echo "You must start tmux to use tdlm."; return 1; }
 
   local ai="$1"

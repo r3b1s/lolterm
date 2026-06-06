@@ -13,3 +13,6 @@ map("n", "<C-d>", "<C-d>zz", { noremap = true })
 map("n", "<C-u>", "<C-u>zz", { noremap = true })
 map("n", "n", "nzz", { noremap = true })
 map("n", "N", "Nzz", { noremap = true })
+
+-- Tmux Sessionizer
+map("n", "<C-t>", "<cmd>silent !tmux neww ~/.local/bin/tmux-sessionizer<CR>", { desc = "tmux sessionizer" })

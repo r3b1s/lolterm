@@ -3,9 +3,9 @@
 -- Add any additional options here
 vim.g.snacks_animate = false
 
-vim.opt.autoread = true
 vim.opt.relativenumber = false
 vim.opt.scrolloff = 0
+vim.opt.autoread = true
 vim.opt.wrap = true
 
 vim.opt.tabstop = 2
