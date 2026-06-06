@@ -9,7 +9,7 @@ on:
 jobs:
   lolterm-smoke:
     name: ${{ matrix.flavor }}
-    runs-on: ubuntu-latest
+    runs-on: [untrusted]
     strategy:
       fail-fast: false
       matrix:
