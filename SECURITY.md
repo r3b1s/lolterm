@@ -40,6 +40,8 @@ User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are opti
 
 LazyVim is installed by cloning the official LazyVim starter repository for both the baseline `nvim` profile and the separate `nvim-notes` profile. Trust basis: upstream documented starter repository. lolterm copies local profile overrides, including oxocarbon theming; plugin updates are handled by Neovim/LazyVim plugin tooling after installation.
 
+`tmux-sessionizer` is a shell script bundled with lolterm in `bin/` and copied to `~/.local/bin/`. Trust basis: part of the lolterm repository. Uses `fzf` for project selection and `tmux` for session management.
+
 Netbird is optional and installed from the official Netbird RPM repository when selected in `lolterm-setup` or provisioned with `--netbird-setup-key` in headless mode. The repo uses GPG and repo metadata checks.
 
 When SELinux is enabled, NetBird provisioning installs a local `lolterm_netbird_ssh` policy module at priority 300. The module labels `/usr/bin/netbird` as `netbird_exec_t`, makes systemd-started NetBird run as `netbird_t`, and permits only `netbird_t` to transition into the authenticated user's `unconfined_t` shell domain through `/usr/bin/login`. This avoids a broad `unconfined_service_t` allowance while preserving SELinux enforcement.

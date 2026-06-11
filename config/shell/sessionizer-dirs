@@ -1,0 +1,22 @@
+# tmux-sessionizer project directories
+# One directory per line. Lines starting with # are comments.
+# ~ is expanded to $HOME.
+# Only existing directories are searched.
+
+# Home directory project folders
+~/personal
+~/work
+~/repos
+~/other
+
+# ~/Local
+~/Local/personal
+~/Local/work
+~/Local/repos
+~/Local/other
+
+# ~/Dev
+~/Dev/personal
+~/Dev/work
+~/Dev/repos
+~/Dev/other

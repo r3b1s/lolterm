@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# tmux-sessionizer - fuzzy project directory picker for tmux
+# Reads target directories from ~/.config/shell/sessionizer-dirs (one per line).
+# Falls back to sensible defaults if the config file doesn't exist.
+
+CONFIG_FILE="$HOME/.config/shell/sessionizer-dirs"
+if [[ ! -f "$HOME/.config/shell/tmux_fns" ]]; then
+  echo "Error: tmux_fns not found. Is lolterm installed?" >&2
+  exit 1
+fi
+. "$HOME/.config/shell/tmux_fns"
+
+# Build directory list from config file or defaults
+dirs=()
+if [[ -f "$CONFIG_FILE" ]]; then
+  while IFS= read -r line; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${line// /}" ]] && continue
+    line="${line/#\~/$HOME}"
+    [[ -d "$line" ]] && dirs+=("$line")
+  done < "$CONFIG_FILE"
+else
+  PREFIXES=("$HOME" "$HOME/Local" "$HOME/Dev")
+  PROJECT_DIRS=(personal Personal work Work repos Repos other Other)
+  for prefix in "${PREFIXES[@]}"; do
+    for proj in "${PROJECT_DIRS[@]}"; do
+      [[ -d "$prefix/$proj" ]] && dirs+=("$prefix/$proj")
+    done
+  done
+fi
+
+if [[ ${#dirs[@]} -eq 0 ]]; then
+  echo "No project directories found. Edit $CONFIG_FILE to add directories." >&2
+  exit 1
+fi
+
+selected=$(find "${dirs[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | fzf || true)
+
+if [[ -z $selected ]]; then
+  exit 0
+fi
+
+selected_name=$(basename "$selected" | tr . _)
+tmux_running=$(pgrep tmux)
+
+if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
+  tmux new-session -ds "$selected_name" -c "$selected"
+  tmux switch-client -t "$selected_name"
+  tvl_split "$selected"
+  tmux attach-session -t "$selected_name"
+  exit 0
+fi
+
+if ! tmux has-session -t="$selected_name" 2>/dev/null; then
+  tmux new-session -ds "$selected_name" -c "$selected"
+  tmux switch-client -t "$selected_name"
+  tvl_split "$selected"
+fi
+
+tmux switch-client -t "$selected_name"

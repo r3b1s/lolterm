@@ -399,6 +399,8 @@ install_dotfiles() {
   as_user mkdir -p "$TARGET_HOME/.config/shell"
   cp -f "$INSTALLER_DIR/config/shell/aliases" "$TARGET_HOME/.config/shell/aliases"
   cp -f "$INSTALLER_DIR/config/shell/tmux_fns" "$TARGET_HOME/.config/shell/tmux_fns"
+  # sessionizer-dirs: don't overwrite user's customized config
+  cp -n "$INSTALLER_DIR/config/shell/sessionizer-dirs" "$TARGET_HOME/.config/shell/sessionizer-dirs" 2>/dev/null || true
   echo "  Shell aliases and functions"
 
   # Tmux
@@ -510,13 +512,15 @@ install_bins() {
   cp -f "$INSTALLER_DIR/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-configure-firewall"
   cp -f "$INSTALLER_DIR/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-update"
   cp -f "$INSTALLER_DIR/bin/lolterm-kali-rebuild" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild"
+  cp -f "$INSTALLER_DIR/bin/tmux-sessionizer" "$TARGET_HOME/.local/bin/tmux-sessionizer"
   rm -f "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild" "$TARGET_HOME/.local/bin/tmux-sessionizer"
   echo "  lolterm-setup"
   echo "  lolterm-install-desktop"
   echo "  lolterm-configure-firewall"
   echo "  lolterm-update"
   echo "  lolterm-kali-rebuild"
+  echo "  tmux-sessionizer"
 }
 install_bins
 

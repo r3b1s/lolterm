@@ -192,6 +192,8 @@ bun optional with --mise selector
 python optional with --mise selector
 starship
 rtk optional with --rtk
+colgrep optional with --colgrep
+tmux-sessionizer
 LazyVim starter
 nvim-notes LazyVim profile
 Tailscale optional
@@ -445,6 +447,7 @@ eff       open fzf result in editor
 n         nvim (opens cwd if no args)
 notes     nvim with NVIM_APPNAME=nvim-notes
 t         tmux (attach or new)
+ts        tmux-sessionizer (fzf project picker)
 
 # git
 g         git
@@ -516,13 +519,15 @@ config/root/shell/bash/appendrc    optional root bash block
 config/root/shell/bash/inputrc     optional root readline config
 config/tmux/tmux.conf              tmux
 config/shell/aliases               shell aliases
-config/shell/tmux_fns              tdl, tdlm, tsl
+config/shell/tmux_fns              tdl, tdlm, tsl, tvl, tvl_split, genssh
+config/shell/sessionizer-dirs      tmux-sessionizer project directory config
 config/nvim/lua/config/            LazyVim overrides
 config/nvim-notes/                 nvim-notes LazyVim profile overrides
 bin/lolterm-setup                  interactive post-install config
 bin/lolterm-install-desktop        installs optional XFCE/XRDP desktop later
 bin/lolterm-configure-firewall     configures the optional host firewall later
 bin/lolterm-update                 updates DNF packages and lolterm-managed non-DNF tools
+bin/tmux-sessionizer              fzf-powered tmux project session switcher
 ```
 
 ## Requirements
