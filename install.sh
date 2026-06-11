@@ -26,6 +26,7 @@ TIMEZONE=""
 LOCALE=""
 SSH_KEY_FILE=""
 RTK=false
+COLGREP=false
 DEBUG_LOG=""
 
 usage() {
@@ -67,6 +68,7 @@ Options:
   --docker            Install Docker CE with lazydocker
   --podman            Install Podman from Fedora DNF packages
   --rtk               Install RTK (token-optimized CLI proxy)
+  --colgrep           Install colgrep (semantic grep for code)
   --debug FILE        Log full install output to FILE
   --help             Show this help
 USAGE
@@ -194,6 +196,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --rtk) RTK=true; shift ;;
+    --colgrep) COLGREP=true; shift ;;
     --debug)
       if [[ -z "${2:-}" ]]; then
         echo "Missing value for --debug" >&2
@@ -382,6 +385,10 @@ fi
 # ---------- Optional AI tools ----------
 if $RTK; then
   install_rtk
+fi
+
+if $COLGREP; then
+  install_colgrep
 fi
 
 # ---------- Install dotfiles ----------

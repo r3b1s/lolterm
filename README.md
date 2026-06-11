@@ -124,6 +124,8 @@ To combine a container runtime with Kali container:
 
 `--rtk`: Install RTK (token-optimized CLI proxy) from the latest upstream GitHub release RPM after SHA-256 checksum verification. RTK is not installed by default.
 
+`--colgrep`: Install colgrep (semantic grep for code) from the latest upstream GitHub release tarball after SHA-256 checksum verification. colgrep is not installed by default.
+
 `--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
 
 `--help`: Show installer options.
@@ -223,6 +225,8 @@ Fedora DNF packages are preferred whenever available.
 `act-cli` is installed from the upstream-documented `goncalossilva/act` COPR and provides the `act` command.
 
 `rtk` is installed on x86_64 only when `--rtk` is selected, from the latest upstream GitHub release RPM after SHA-256 verification.
+
+`colgrep` is installed on x86_64 only when `--colgrep` is selected, from the latest upstream GitHub release tarball after SHA-256 verification.
 
 User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are installed only when requested through `--mise` selectors. The installer runs `mise use --pin -g <selector>` so resolved global versions are pinned at provisioning time. Future runtime changes are owned by the user through mise.
 

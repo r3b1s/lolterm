@@ -26,6 +26,8 @@ Every package source change must be documented in `README.md` and this file.
 
 `rtk` is installed on x86_64 only when `--rtk` is selected, from the latest upstream GitHub release RPM. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
 
+`colgrep` is installed on x86_64 only when `--colgrep` is selected, from the latest upstream GitHub release tarball (`lightonai/next-plaid`). Trust basis: upstream release artifact verified against upstream SHA-256 checksums. Update command: `lolterm-update`.
+
 `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, and `docker-compose-plugin` are installed only when `--docker` is selected, from the official Docker CE RPM repository. Trust basis: official project-owned RPM repository with GPG signing. Repository GPG fingerprint: `060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35`. Update command: `sudo dnf upgrade docker-ce docker-ce-cli containerd.io`.
 
 `lazydocker` is installed only when `--docker` is selected, from the latest upstream GitHub release tarball. Trust basis: upstream release artifact verified against upstream checksums. Update command: `lolterm-update`.
