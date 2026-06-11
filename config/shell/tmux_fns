@@ -126,19 +126,45 @@ tsl() {
   tmux select-pane -t "${panes[0]}"
 }
 
-# Create 3 vertical panes with roughly equal width (33/34/33)
-# Usage: tvl
+# Split the current pane into 3 vertical panes (33/34/33)
+# Usage: tvl_split [<directory>]
+# Layout-only: does not create or manage sessions.
+tvl_split() {
+  local current_dir="${1:-$PWD}"
+  local target="$TMUX_PANE"
+
+  tmux rename-window -t "$target" "$(basename "$current_dir")"
+  tmux split-window -h -t "$target" -c "$current_dir"
+  tmux split-window -h -t "$target" -c "$current_dir"
+  tmux select-layout -t "$target" even-horizontal
+}
+
+# Create a tmux session with 3 vertical panes and attach/switch
+# Usage: tvl <session_name> [<directory>]
 tvl() {
-  [[ -z $TMUX ]] && { echo "You must start tmux to use tvl."; return 1; }
+  local session_name="${1:-}"
+  local current_dir="${2:-$PWD}"
 
-  local current_dir="${PWD}"
+  [[ -z $session_name ]] && { echo "Usage: tvl <session_name> [<directory>]" >&2; return 1; }
 
-  tmux rename-window -t "$TMUX_PANE" "$(basename "$current_dir")"
+  local session="$session_name"
+  tmux new-session -ds "$session" -c "$current_dir"
 
-  # Create two additional vertical panes
-  tmux split-window -h -t "$TMUX_PANE" -c "$current_dir"
-  tmux split-window -h -t "$TMUX_PANE" -c "$current_dir"
+  # Switch into the new session so tvl_split operates on its pane
+  if [[ -n $TMUX ]]; then
+    tmux switch-client -t "$session"
+  else
+    tmux attach-session -t "$session"
+  fi
 
-  # Even out all pane widths using the even-horizontal layout
-  tmux select-layout -t "$TMUX_PANE" even-horizontal
+  tvl_split "$current_dir"
+}
+
+# Generate an ed25519 SSH key pair
+# Usage: genssh <filename> <comment>
+genssh() {
+  [[ -z "${1:-}" ]] && { echo "Usage: genssh <filename> <comment>" >&2; return 1; }
+  [[ "$1" == */* || "$1" == *..* ]] && { echo "Invalid filename." >&2; return 1; }
+  [[ -f "$HOME/.ssh/$1" ]] && { echo "Key $HOME/.ssh/$1 already exists. Remove it first or choose a different name." >&2; return 1; }
+  ssh-keygen -t ed25519 -a 500 -f "$HOME/.ssh/$1" -C "${2:-}"
 }
