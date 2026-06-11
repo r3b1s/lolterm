@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flavor: [base, mise, mise-tools, desktop, kali-container, claude, docker, podman, kali-docker, kali-podman]
+        flavor: [base, mise, mise-tools, desktop, kali-container, claude, colgrep, docker, podman, kali-docker, kali-podman]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

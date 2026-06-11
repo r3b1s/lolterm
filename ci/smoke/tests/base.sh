@@ -13,6 +13,12 @@ run_test() {
   assert_path "/home/$TEST_USER/.config/starship.toml"
   assert_path "/home/$TEST_USER/.local/bin/lolterm-setup"
   assert_executable "/home/$TEST_USER/.local/bin/lolterm-update"
+  assert_path "/home/$TEST_USER/.local/bin/tmux-sessionizer"
+  assert_executable "/home/$TEST_USER/.local/bin/tmux-sessionizer"
+  assert_path "/home/$TEST_USER/.config/shell/sessionizer-dirs"
+  assert_path "/home/$TEST_USER/.config/shell/tmux_fns"
+  assert_file_contains "/home/$TEST_USER/.config/shell/aliases" "alias ts='tmux-sessionizer'"
+  assert_file_contains "/home/$TEST_USER/.config/shell/tmux_fns" "genssh()"
   assert_file_contains "/home/$TEST_USER/.bashrc" "# ----- lolterm shell config -----"
 
   assert_file_contains "/home/$TEST_USER/.ssh/authorized_keys" "$SSH_KEY"
