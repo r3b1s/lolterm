@@ -127,9 +127,9 @@ tsl() {
 }
 
 # Split the current pane into 3 vertical panes (33/34/33)
-# Usage: tvl_split [<directory>]
+# Usage: tvl [<directory>]
 # Layout-only: does not create or manage sessions.
-tvl_split() {
+tvl() {
   local current_dir="${1:-$PWD}"
   local target="$TMUX_PANE"
 
@@ -140,24 +140,24 @@ tvl_split() {
 }
 
 # Create a tmux session with 3 vertical panes and attach/switch
-# Usage: tvl <session_name> [<directory>]
-tvl() {
+# Usage: tvls <session_name> [<directory>]
+tvls() {
   local session_name="${1:-}"
   local current_dir="${2:-$PWD}"
 
-  [[ -z $session_name ]] && { echo "Usage: tvl <session_name> [<directory>]" >&2; return 1; }
+  [[ -z $session_name ]] && { echo "Usage: tvls <session_name> [<directory>]" >&2; return 1; }
 
   local session="$session_name"
   tmux new-session -ds "$session" -c "$current_dir"
 
-  # Switch into the new session so tvl_split operates on its pane
-  if [[ -n $TMUX ]]; then
+  # Switch into the new session so tvl operates on its pane
+  if [[ -n ${TMUX:-} ]]; then
     tmux switch-client -t "$session"
   else
     tmux attach-session -t "$session"
   fi
 
-  tvl_split "$current_dir"
+  tvl "$current_dir"
 }
 
 # Generate an ed25519 SSH key pair

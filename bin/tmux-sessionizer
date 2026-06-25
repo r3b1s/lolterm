@@ -5,11 +5,6 @@ set -euo pipefail
 # Falls back to sensible defaults if the config file doesn't exist.
 
 CONFIG_FILE="$HOME/.config/shell/sessionizer-dirs"
-if [[ ! -f "$HOME/.config/shell/tmux_fns" ]]; then
-  echo "Error: tmux_fns not found. Is lolterm installed?" >&2
-  exit 1
-fi
-. "$HOME/.config/shell/tmux_fns"
 
 # Build directory list from config file or defaults
 dirs=()
@@ -44,18 +39,14 @@ fi
 selected_name=$(basename "$selected" | tr . _)
 tmux_running=$(pgrep tmux)
 
-if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
-  tmux new-session -ds "$selected_name" -c "$selected"
-  tmux switch-client -t "$selected_name"
-  tvl_split "$selected"
+if [[ -z ${TMUX:-} ]] && [[ -z $tmux_running ]]; then
+  tmux new-session -s "$selected_name" -c "$selected"
   tmux attach-session -t "$selected_name"
   exit 0
 fi
 
 if ! tmux has-session -t="$selected_name" 2>/dev/null; then
   tmux new-session -ds "$selected_name" -c "$selected"
-  tmux switch-client -t "$selected_name"
-  tvl_split "$selected"
 fi
 
 tmux switch-client -t "$selected_name"

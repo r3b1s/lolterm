@@ -519,7 +519,7 @@ config/root/shell/bash/appendrc    optional root bash block
 config/root/shell/bash/inputrc     optional root readline config
 config/tmux/tmux.conf              tmux
 config/shell/aliases               shell aliases
-config/shell/tmux_fns              tdl, tdlm, tsl, tvl, tvl_split, genssh
+config/shell/tmux_fns              tdl, tdlm, tsl, tvl, tvls, genssh
 config/shell/sessionizer-dirs      tmux-sessionizer project directory config
 config/nvim/lua/config/            LazyVim overrides
 config/nvim-notes/                 nvim-notes LazyVim profile overrides
