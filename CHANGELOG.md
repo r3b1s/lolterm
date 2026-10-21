@@ -22,9 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `install/nix.sh` and `install/firewall.sh` (the host firewall operation, formerly in `install/operations.sh`).
 - `smoke/`: a libvirt smoke harness that builds a signature-verified, fully updated Fedora Cloud 44 VM with a golden clone and a `clean` snapshot, and runs flavors (`base`, `mise`, `mise-tools`, `docker`, `podman`, `firewall`) against it.
 - `docs/design.md`, `docs/installer.md`, and `docs/smoke-testing.md`.
+- `install-on-qubes.sh`: provisions a Qubes OS Fedora TemplateVM from the shared modules. Per-user config goes to `/etc/skel`, git clones go through the Qubes updates proxy, sshd is installed but disabled, and Nix trusts `user`. Options: `--mise` (binary only), `--podman` (rootless, global user socket, subuids, low-port sysctl), `--root-config`, `--git-name`/`--git-email` (`/etc/skel/.gitconfig`), `--debug`. See `docs/qubes.md`.
+- `mise-helpers/mise-lazydocker.sh docker|podman`: post-install helper that installs lazydocker with mise and, for Podman, sets `DOCKER_HOST` to the rootless Podman socket in mise's global env.
+- Smoke flavors `qubes` and `mise-lazydocker`; flavors can now set `INSTALL_SCRIPT`, `INSTALL_SUDO`, `INSTALL_ENV` and `prepare_flavor`.
 
 ### Fixed
 - `--podman` now installs `podman-docker` and `podman-compose` on Fedora Cloud, which ships `podman` preinstalled; the module previously saw the `podman` command and skipped the whole install.
+
+### Changed
+- `install_root_dotfiles` moved from `install.sh` into `install/dotfiles.sh`, and Podman's package step into `install_podman_packages`, so both installers share them. `install_podman` now also enables the user socket when the packages were already installed.
 
 ### Added
 - Kali container GUI tool integration: tool wrappers and shell functions now forward `DISPLAY` and `XAUTHORITY` into the container, enabling graphical tools (Wireshark, Maltego, etc.) to connect to the host X server via the mounted X11 socket.

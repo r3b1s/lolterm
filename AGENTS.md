@@ -32,6 +32,8 @@ Document every package source change in the "Package Sources" section of `README
 
 ## Installer Structure
 
+`install-on-qubes.sh` is a separate entry point for Qubes OS Fedora TemplateVMs: per-user config goes to `/etc/skel`, network goes through the Qubes updates proxy, and it reuses the `install/` modules. Keep Qubes behavior out of `install.sh`; see `docs/qubes.md`.
+
 `install.sh` handles argument parsing, user/root config installation, optional module orchestration, services, and final orchestration. Shared behavior belongs in `install/` modules, not inline in `install.sh`.
 
 `install/packages.sh` handles Fedora DNF packages and trusted DNF repositories.
@@ -47,6 +49,8 @@ Document every package source change in the "Package Sources" section of `README
 `install/container-runtime.sh` handles optional Docker CE or Podman.
 
 `bin/` contains helper scripts copied to `$TARGET_HOME/.local/bin`.
+
+`mise-helpers/` contains post-install scripts users run themselves on an installed system; installers never run or copy them.
 
 `config/` contains user and optional root dotfiles copied by the installer.
 

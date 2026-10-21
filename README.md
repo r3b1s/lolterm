@@ -46,6 +46,12 @@ bash install.sh --podman
 
 Log out and back in when installation completes.
 
+For a Qubes OS Fedora template, run the separate `install-on-qubes.sh` as root inside the TemplateVM; AppVMs created from it afterwards get lolterm. See [docs/qubes.md](docs/qubes.md).
+
+```bash
+sudo bash install-on-qubes.sh --mise --podman
+```
+
 ## Installer Flags
 
 `--headless`: Skip interactive post-install setup.
@@ -183,6 +189,16 @@ firewalld is installed from Fedora DNF packages when `--enable-host-firewall` re
 
 lazygit, uv, and global npm packages are intentionally not installed right now.
 
+## mise Helpers
+
+`mise-helpers/` holds scripts you run yourself, as your own user, on a system that already has lolterm installed with `--mise`. The installers never run them.
+
+`mise-helpers/mise-lazydocker.sh docker|podman` installs lazydocker with `mise use -g lazydocker@latest`; mise's aqua backend verifies the release against upstream's SHA-256 checksums. With `podman`, it enables your rootless `podman.socket` and sets `DOCKER_HOST` to that socket in the `[env]` of mise's global config, so lazydocker (and any other Docker-API client in shells with mise activated) talks to Podman. With `docker`, it removes that `DOCKER_HOST` so Docker's default socket is used.
+
+```bash
+mise-helpers/mise-lazydocker.sh podman
+```
+
 ## Host Firewall
 
 By default, lolterm preserves Fedora Cloud's baseline network posture and does not impose a custom host firewall policy. Use cloud firewalls, security groups, VPN policy, or other platform controls as appropriate.
@@ -302,6 +318,8 @@ Review NetBird and Tailscale access controls before authenticating a server. Bro
 
 ```text
 install.sh                         entry point
+install-on-qubes.sh                Qubes OS TemplateVM entry point
+mise-helpers/mise-lazydocker.sh    post-install: lazydocker via mise for Docker or Podman
 install/packages.sh                Fedora packages and approved COPRs
 install/nix.sh                     Nix packages, daemon, and nix.conf block
 install/dotfiles.sh                user dotfiles (shared by installers)
