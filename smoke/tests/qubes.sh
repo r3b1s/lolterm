@@ -9,6 +9,9 @@ INSTALL_ARGS=(--mise --podman --root-config --git-name "Lolterm Smoke" --git-ema
 
 prepare_flavor() {
   vm_ssh 'sudo useradd -m user'
+  # Fedora Cloud ships podman and its qemu-user-static weak deps; a Qubes
+  # template may not. Remove them so --podman installs them fresh, as there.
+  vm_ssh 'sudo dnf remove -y -q podman podman-docker podman-compose containers-common-extra "qemu-user-static*" >/dev/null'
 }
 
 assert_flavor() {
@@ -34,6 +37,11 @@ assert_flavor() {
   assert_file_contains /etc/subuid "user:"
   assert_file_contains /etc/subgid "user:"
   assert_file_contains /etc/sysctl.d/99-lolterm-unprivileged-ports.conf "ip_unprivileged_port_start=1"
+
+  # No QEMU via weak deps (Xen has no nested virtualization). qemu-guest-agent
+  # is part of the Fedora Cloud image itself, not installed by lolterm.
+  assert_file_contains /etc/dnf/libdnf5.conf.d/80-lolterm-qubes-no-qemu.conf "exclude_from_weak=qemu-*"
+  ! vm_ssh "rpm -qa 'qemu*' | grep -v '^qemu-guest-agent'" || fail "QEMU packages were installed"
 
   # Per-user config in /etc/skel.
   assert_path "$skel/.config/tmux/tmux.conf"

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The container-based smoke tests (`ci/smoke/`) and the Forgejo smoke workflow.
 
 ### Added
+- `install-on-qubes.sh` keeps QEMU out of the template: a dnf5 drop-in (`exclude_from_weak=qemu-*`) stops dnf from installing QEMU as a weak dependency, since Xen has no nested virtualization. Hard dependencies still install, and existing installs are not changed.
 - The Nix package manager (`nix`, `nix-daemon`) from Fedora packages in the default install. `nix-daemon.service` is enabled, following Fedora's nix README, and a marked block in `/etc/nix/nix.conf` sets `extra-experimental-features = nix-command flakes` and `extra-trusted-users = <install user>`.
 - `install/dotfiles.sh`: `install_dotfiles()` moved out of `install.sh` unchanged so other entry points can share it.
 - `install/nix.sh` and `install/firewall.sh` (the host firewall operation, formerly in `install/operations.sh`).

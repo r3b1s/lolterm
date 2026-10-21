@@ -50,6 +50,7 @@ Nothing runs in dom0, and no netvm needs to be attached to the template.
 |---|---|
 | Core packages | `install_packages`, unchanged; dnf skips what the template already ships |
 | Nix | Fedora `nix` + `nix-daemon`, service enabled, `extra-trusted-users = user` |
+| No QEMU | Xen has no nested virtualization, so the script writes `/etc/dnf/libdnf5.conf.d/80-lolterm-qubes-no-qemu.conf` (`exclude_from_weak=qemu-*`) before installing anything. dnf in the template then never pulls QEMU in as a weak dependency (Podman's `containers-common-extra` recommends every `qemu-user-static-*` emulator). A hard dependency still installs; nothing already installed is removed |
 | `openssh-server` | Installed, but **sshd stays disabled**; a qube that needs SSH starts it itself with its own persistent host key |
 | Dotfiles, `tmux-sessionizer` | Into `/etc/skel` |
 | `--mise` | The mise binary only. Tools are installed per AppVM with `mise use -g`; selectors baked into `/etc/skel` would copy tool trees and absolute paths into every AppVM |

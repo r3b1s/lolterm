@@ -106,6 +106,23 @@ section() {
   echo -e "\n==> $1"
 }
 
+# Xen does not support nested virtualization, so QEMU is useless in a qube.
+# Some packages still recommend it (Podman pulls containers-common-extra,
+# which recommends every qemu-user-static-* emulator). Keep QEMU out of weak
+# dependencies for every dnf install in this template from now on; a real
+# (hard) dependency still installs, and nothing already installed is removed.
+cat >/etc/dnf/libdnf5.conf.d/80-lolterm-qubes-no-qemu.conf 2>/dev/null <<'DNFCONF' || true
+# Written by lolterm's install-on-qubes.sh. Xen (Qubes OS) has no nested
+# virtualization, so never pull QEMU in as a weak (recommended) dependency.
+[main]
+exclude_from_weak=qemu-*
+DNFCONF
+if [[ -s /etc/dnf/libdnf5.conf.d/80-lolterm-qubes-no-qemu.conf ]]; then
+  echo "QEMU is excluded from dnf weak dependencies in this template."
+else
+  echo "Warning: could not write the dnf5 drop-in; QEMU may arrive as a weak dependency." >&2
+fi
+
 # Templates reach the network only through the Qubes updates proxy. dnf is
 # pointed at it by Qubes (/etc/dnf/dnf.conf); git and curl need the env vars.
 if [[ -e /var/run/qubes-service/updates-proxy-setup ]]; then
