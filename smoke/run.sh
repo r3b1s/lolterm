@@ -51,7 +51,7 @@ assert_no_path() {
 }
 
 assert_executable() {
-  vm_ssh "test -x $(printf '%q' "$1")" || fail "not executable: $1"
+  vm_ssh "sudo test -x $(printf '%q' "$1")" || fail "not executable: $1"
 }
 
 assert_file_contains() {
@@ -77,9 +77,14 @@ run_flavor() {
   local flavor="$1" file="$TEST_DIR/$1.sh"
   [[ -f "$file" ]] || { echo "Unknown flavor: $flavor" >&2; usage >&2; exit 1; }
 
-  # Each flavor file defines INSTALL_ARGS (array) and assert_flavor().
-  unset -f assert_flavor
+  # Each flavor file defines INSTALL_ARGS (array) and assert_flavor(). It may
+  # also set INSTALL_SCRIPT, INSTALL_SUDO=true, INSTALL_ENV ("VAR=value ...")
+  # and define prepare_flavor() to run on the VM before the install.
+  unset -f assert_flavor prepare_flavor
   INSTALL_ARGS=()
+  INSTALL_SCRIPT="install.sh"
+  INSTALL_SUDO=false
+  INSTALL_ENV=""
   source "$file"
 
   log "[$flavor] Reverting $VM to '$SNAPSHOT'..."
@@ -92,12 +97,18 @@ run_flavor() {
   (cd "$REPO_ROOT" && git ls-files -z -co --exclude-standard | tar --null -T - -czf -) \
     | vm_ssh 'rm -rf ~/lolterm && mkdir ~/lolterm && tar -xzf - -C ~/lolterm'
 
-  local args="" a
+  if declare -F prepare_flavor >/dev/null; then
+    log "[$flavor] Preparing..."
+    prepare_flavor
+  fi
+
+  local args="" a sudo=""
   for a in "${INSTALL_ARGS[@]}"; do
     args+=" $(printf '%q' "$a")"
   done
-  log "[$flavor] Running: install.sh$args"
-  vm_ssh "cd ~/lolterm && LOLTERM_INSTALLER_DIR=\$HOME/lolterm ./install.sh$args"
+  $INSTALL_SUDO && sudo="sudo"
+  log "[$flavor] Running: $INSTALL_SCRIPT$args"
+  vm_ssh "cd ~/lolterm && $sudo env LOLTERM_INSTALLER_DIR=\$HOME/lolterm $INSTALL_ENV ./$INSTALL_SCRIPT$args"
 
   log "[$flavor] Asserting..."
   assert_flavor
