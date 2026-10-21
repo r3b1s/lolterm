@@ -107,6 +107,18 @@ install_lazydocker() {
 }
 
 install_podman() {
+  install_podman_packages
+
+  # Enable podman socket for the target user (works in headless contexts)
+  systemctl --user --machine="$TARGET_USER@.host" enable --now podman.socket 2>/dev/null || {
+    echo "  Warning: could not enable podman.socket (no login session yet?)" >&2
+    echo "  Start manually after login: systemctl --user enable --now podman.socket" >&2
+  }
+
+  echo "  Podman installed and socket enabled"
+}
+
+install_podman_packages() {
   # Fedora Cloud ships podman itself, so check the full set, not the command.
   if rpm -q podman podman-docker podman-compose &>/dev/null; then
     section "Podman is already installed"
@@ -120,12 +132,4 @@ install_podman() {
     moby-engine-rootless-extras moby-filesystem 2>/dev/null || true
 
   sudo dnf install -y podman podman-docker podman-compose
-
-  # Enable podman socket for the target user (works in headless contexts)
-  systemctl --user --machine="$TARGET_USER@.host" enable --now podman.socket 2>/dev/null || {
-    echo "  Warning: could not enable podman.socket (no login session yet?)" >&2
-    echo "  Start manually after login: systemctl --user enable --now podman.socket" >&2
-  }
-
-  echo "  Podman installed and socket enabled"
 }

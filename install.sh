@@ -279,23 +279,6 @@ fi
 # ---------- Install dotfiles ----------
 install_dotfiles
 
-install_root_dotfiles() {
-  $ROOT_CONFIG || return 0
-
-  section "Installing root dotfiles..."
-
-  sudo install -d -m 755 /root/.config
-  sudo install -m 644 "$INSTALLER_DIR/config/root/starship.toml" /root/.config/starship.toml
-  sudo install -m 644 "$INSTALLER_DIR/config/root/shell/bash/inputrc" /root/.inputrc
-
-  local root_stamp="# ----- lolterm root shell config -----"
-  if ! sudo grep -qF "$root_stamp" /root/.bashrc 2>/dev/null; then
-    sudo tee -a /root/.bashrc < "$INSTALLER_DIR/config/root/shell/bash/appendrc" >/dev/null
-  fi
-
-  sudo chown root:root /root/.config/starship.toml /root/.inputrc /root/.bashrc
-  echo "  Root shell, readline, and Starship config"
-}
 install_root_dotfiles
 
 # ---------- Install bins ----------

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # User dotfiles for lolterm: shell, tmux, Starship, LazyVim profiles, and the
-# managed .bashrc block. Writes into $TARGET_HOME; callers set TARGET_HOME,
-# INSTALLER_DIR, and provide as_user() and section().
+# managed .bashrc block, plus optional root config. Writes into $TARGET_HOME
+# and /root; callers set TARGET_HOME, INSTALLER_DIR and ROOT_CONFIG, and
+# provide as_user() and section().
 
 install_dotfiles() {
   section "Installing dotfiles..."
@@ -74,4 +75,23 @@ fi
 BASHRC
     echo "  .bashrc"
   fi
+}
+
+# Optional root shell, readline, and Starship config (--root-config).
+install_root_dotfiles() {
+  $ROOT_CONFIG || return 0
+
+  section "Installing root dotfiles..."
+
+  sudo install -d -m 755 /root/.config
+  sudo install -m 644 "$INSTALLER_DIR/config/root/starship.toml" /root/.config/starship.toml
+  sudo install -m 644 "$INSTALLER_DIR/config/root/shell/bash/inputrc" /root/.inputrc
+
+  local root_stamp="# ----- lolterm root shell config -----"
+  if ! sudo grep -qF "$root_stamp" /root/.bashrc 2>/dev/null; then
+    sudo tee -a /root/.bashrc < "$INSTALLER_DIR/config/root/shell/bash/appendrc" >/dev/null
+  fi
+
+  sudo chown root:root /root/.config/starship.toml /root/.inputrc /root/.bashrc
+  echo "  Root shell, readline, and Starship config"
 }
