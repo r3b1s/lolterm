@@ -107,7 +107,8 @@ install_lazydocker() {
 }
 
 install_podman() {
-  if command -v podman &>/dev/null; then
+  # Fedora Cloud ships podman itself, so check the full set, not the command.
+  if rpm -q podman podman-docker podman-compose &>/dev/null; then
     section "Podman is already installed"
     return 0
   fi
