@@ -16,7 +16,7 @@ assert_flavor() {
 
   # Shared system install.
   assert_rpm neovim
-  assert_rpm act-cli
+  assert_no_rpm act-cli
   assert_rpm starship
   assert_rpm nix
   assert_service nix-daemon.service enabled

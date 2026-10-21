@@ -28,7 +28,7 @@ on the caller for `section`, `as_user`, `TARGET_USER`, `TARGET_HOME` and
 
 | Module | Functions | Notes |
 |---|---|---|
-| `install/packages.sh` | `install_packages` | Fedora packages plus the act and starship COPRs |
+| `install/packages.sh` | `install_packages` | Fedora packages plus the starship COPR |
 | `install/nix.sh` | `install_nix [user]`, `configure_nix_conf user` | Fedora `nix` + `nix-daemon`, service enabled (not the socket: it fails under SELinux); marked block in `/etc/nix/nix.conf` |
 | `install/dotfiles.sh` | `install_dotfiles`, `install_root_dotfiles` | Shell, tmux, Starship, LazyVim profiles and `.bashrc` block under `$TARGET_HOME`; root config when `ROOT_CONFIG=true` |
 | `install/firewall.sh` | `configure_host_firewall` | `--enable-host-firewall` |

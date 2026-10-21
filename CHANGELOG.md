@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Removed
+- `act-cli` and the `goncalossilva/act` COPR from every installer. act needs a container engine, so on systems without one it pulled in `moby-engine`, which `--podman`/`--docker` then removed together with act.
 - `--kali-container` and the whole Kali container module, its allowlists, `lolterm-kali-rebuild`, and `lolterm-kali-update`.
 - `--xfce-desktop`, `--remote-desktop`, `--open-xrdp-firewall`, `--user-password`, `--user-password-file`, `lolterm-install-desktop`, the XRDP password step in `lolterm-setup`, `lolterm-configure-firewall --allow-xrdp`, and `local-system-config/`.
 - `--tmux-autostart`.

@@ -7,9 +7,8 @@ assert_flavor() {
   assert_rpm git
   assert_rpm tmux
   assert_rpm neovim
-  assert_rpm act-cli
   assert_rpm starship
-  assert_user_cmd "act --version"
+  assert_no_rpm act-cli
 
   # Nix: packages, daemon, managed config, and a working daemon-backed eval.
   assert_rpm nix

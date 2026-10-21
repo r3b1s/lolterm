@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, local CI workflow testing with `act`, Neovim/LazyVim, Rust from Fedora packages, the Nix package manager, optional mise-managed runtimes, an optional container runtime, and optional root shell configuration.
+Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, Rust from Fedora packages, the Nix package manager, optional mise-managed runtimes, an optional container runtime, and optional root shell configuration.
 
 ## Quick Start
 
@@ -90,7 +90,7 @@ sudo bash install-on-qubes.sh --mise --podman
 
 **Languages**: Rust and Cargo via Fedora packages. Optional user-scoped runtimes such as Node, pnpm, bun, and Python can be installed through `--mise`.
 
-**Terminal**: tmux, starship, act, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
+**Terminal**: tmux, starship, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
 
 **Nix**: the Nix package manager from Fedora packages, with `nix-daemon` enabled and flakes plus the installing user trusted in `/etc/nix/nix.conf`.
 
@@ -140,7 +140,6 @@ rust
 cargo
 nix
 nix-daemon
-act-cli
 mise optional with --mise
 node optional with --mise selector
 pnpm optional with --mise selector
@@ -174,8 +173,6 @@ Fedora DNF packages are preferred whenever available.
 `nix` and `nix-daemon` are Fedora packages. lolterm enables `nix-daemon.service` (not the socket unit, which cannot bind under SELinux on Fedora's `/nix` labels; Fedora's nix README enables only the service) and appends a marked block to `/etc/nix/nix.conf` with `extra-experimental-features = nix-command flakes` and `extra-trusted-users = <install user>`. Fedora ships that file as `%config(noreplace)`, so package updates keep the block and put new upstream defaults in `nix.conf.rpmnew`.
 
 `starship` is installed from the `atim/starship` COPR.
-
-`act-cli` is installed from the upstream-documented `goncalossilva/act` COPR and provides the `act` command.
 
 User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are installed only when requested through `--mise` selectors. The installer runs `mise use --pin -g <selector>` so resolved global versions are pinned at provisioning time. Future runtime changes are owned by the user through mise.
 
