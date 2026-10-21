@@ -3,30 +3,20 @@ set -euo pipefail
 
 HEADLESS=false
 ROOT_CONFIG=false
-TMUX_AUTOSTART=false
 SSH_KEY=""
 NETBIRD_SETUP_KEY=""
 TAILSCALE_AUTH_KEY=""
-XFCE_DESKTOP=false
-REMOTE_DESKTOP="none"
-OPEN_XRDP_FIREWALL=false
 ENABLE_HOST_FIREWALL=false
-USER_PASSWORD=""
-USER_PASSWORD_FILE=""
 MISE=false
 MISE_SELECTORS=""
 DOCKER=false
 PODMAN=false
-KALI_CONTAINER=false
-CLAUDE=false
 GIT_NAME=""
 GIT_EMAIL=""
 HOSTNAME_CFG=""
 TIMEZONE=""
 LOCALE=""
 SSH_KEY_FILE=""
-RTK=false
-COLGREP=false
 DEBUG_LOG=""
 
 usage() {
@@ -36,7 +26,6 @@ Usage: install.sh [options]
 Options:
   --headless         Skip interactive post-install setup
   --root-config      Install user configs plus optional root configs
-  --tmux-autostart   Auto-start tmux for interactive user shells
   --mise [SELECTORS] Install mise only, or install comma-separated
                      global mise selectors with pinned versions
   --ssh-key KEY      Add an SSH public key and disable password auth
@@ -44,21 +33,8 @@ Options:
                      Provision NetBird non-interactively
   --tailscale-auth-key KEY
                      Provision Tailscale non-interactively
-  --xfce-desktop     Install the XFCE desktop environment
-  --remote-desktop MODE
-                     Remote desktop mode: xrdp or none
-  --open-xrdp-firewall
-                     Open 3389/tcp with firewalld when using XRDP
   --enable-host-firewall
                      Configure a deny-by-default inbound firewalld host firewall
-  --user-password PASSWORD
-                     Set the target user's local password non-interactively
-                     for headless XRDP logins
-  --user-password-file FILE
-                     Read the target user's local password from FILE for
-                     headless XRDP logins
-  --claude            Install Claude Code from the Anthropic DNF repository
-  --kali-container    Install Kali Linux Podman container with security tools
   --git-name NAME     Set the global Git user.name for headless provisioning
   --git-email EMAIL   Set the global Git user.email for headless provisioning
   --hostname NAME     Set the system hostname during provisioning
@@ -67,8 +43,6 @@ Options:
   --ssh-key-file FILE Read an SSH public key from a file
   --docker            Install Docker CE with lazydocker
   --podman            Install Podman from Fedora DNF packages
-  --rtk               Install RTK (token-optimized CLI proxy)
-  --colgrep           Install colgrep (semantic grep for code)
   --debug FILE        Log full install output to FILE
   --help             Show this help
 USAGE
@@ -79,7 +53,6 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --headless) HEADLESS=true; shift ;;
     --root-config) ROOT_CONFIG=true; shift ;;
-    --tmux-autostart) TMUX_AUTOSTART=true; shift ;;
     --mise)
       MISE=true
       if [[ -n "${2:-}" && "${2:0:1}" != "-" ]]; then
@@ -113,40 +86,9 @@ while [[ $# -gt 0 ]]; do
       TAILSCALE_AUTH_KEY="$2"
       shift 2
       ;;
-    --xfce-desktop) XFCE_DESKTOP=true; shift ;;
-    --remote-desktop)
-      if [[ -z "${2:-}" ]]; then
-        echo "Missing value for --remote-desktop" >&2
-        exit 1
-      fi
-      case "$2" in
-        xrdp|none) REMOTE_DESKTOP="$2" ;;
-        *) echo "Unsupported remote desktop mode: $2" >&2; exit 1 ;;
-      esac
-      shift 2
-      ;;
-    --open-xrdp-firewall) OPEN_XRDP_FIREWALL=true; shift ;;
     --enable-host-firewall) ENABLE_HOST_FIREWALL=true; shift ;;
-    --user-password)
-      if [[ -z "${2:-}" ]]; then
-        echo "Missing value for --user-password" >&2
-        exit 1
-      fi
-      USER_PASSWORD="$2"
-      shift 2
-      ;;
-    --user-password-file)
-      if [[ -z "${2:-}" ]]; then
-        echo "Missing value for --user-password-file" >&2
-        exit 1
-      fi
-      USER_PASSWORD_FILE="$2"
-      shift 2
-      ;;
     --docker) DOCKER=true; shift ;;
     --podman) PODMAN=true; shift ;;
-    --claude) CLAUDE=true; shift ;;
-    --kali-container) KALI_CONTAINER=true; shift ;;
     --git-name)
       if [[ -z "${2:-}" ]]; then
         echo "Missing value for --git-name" >&2
@@ -195,8 +137,6 @@ while [[ $# -gt 0 ]]; do
       SSH_KEY_FILE="$2"
       shift 2
       ;;
-    --rtk) RTK=true; shift ;;
-    --colgrep) COLGREP=true; shift ;;
     --debug)
       if [[ -z "${2:-}" ]]; then
         echo "Missing value for --debug" >&2
@@ -220,45 +160,8 @@ if ! $HEADLESS && { [[ -n "$NETBIRD_SETUP_KEY" ]] || [[ -n "$TAILSCALE_AUTH_KEY"
   exit 1
 fi
 
-if [[ "$REMOTE_DESKTOP" != "none" ]] && ! $XFCE_DESKTOP; then
-  echo "--remote-desktop requires --xfce-desktop." >&2
-  exit 1
-fi
-
-if $OPEN_XRDP_FIREWALL && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
-  echo "--open-xrdp-firewall requires --remote-desktop xrdp." >&2
-  exit 1
-fi
-
 if $ENABLE_HOST_FIREWALL && $HEADLESS && [[ -z "$SSH_KEY" && -z "$NETBIRD_SETUP_KEY" && -z "$TAILSCALE_AUTH_KEY" ]]; then
   echo "--enable-host-firewall in --headless mode requires --ssh-key, --netbird-setup-key, or --tailscale-auth-key." >&2
-  exit 1
-fi
-
-if [[ -n "$USER_PASSWORD" && -n "$USER_PASSWORD_FILE" ]]; then
-  echo "Use only one of --user-password or --user-password-file." >&2
-  exit 1
-fi
-
-if [[ -n "$USER_PASSWORD_FILE" ]]; then
-  if [[ ! -r "$USER_PASSWORD_FILE" ]]; then
-    echo "Password file is not readable: $USER_PASSWORD_FILE" >&2
-    exit 1
-  fi
-  USER_PASSWORD="$(<"$USER_PASSWORD_FILE")"
-  if [[ -z "$USER_PASSWORD" ]]; then
-    echo "Password file is empty: $USER_PASSWORD_FILE" >&2
-    exit 1
-  fi
-fi
-
-if [[ -n "$USER_PASSWORD" ]] && ! $HEADLESS; then
-  echo "--user-password and --user-password-file require --headless." >&2
-  exit 1
-fi
-
-if [[ -n "$USER_PASSWORD" ]] && [[ "$REMOTE_DESKTOP" != "xrdp" ]]; then
-  echo "--user-password and --user-password-file require --remote-desktop xrdp." >&2
   exit 1
 fi
 
@@ -339,17 +242,14 @@ show_banner
 section "Installing lolterm on Fedora..."
 
 # ---------- Source installer operations ----------
-source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
 source "$INSTALLER_DIR/install/dotfiles.sh"
+source "$INSTALLER_DIR/install/firewall.sh"
 source "$INSTALLER_DIR/install/mise.sh"
-source "$INSTALLER_DIR/install/kali-container.sh"
-source "$INSTALLER_DIR/install/ai.sh"
 source "$INSTALLER_DIR/install/container-runtime.sh"
 
 # ---------- Install packages ----------
 install_packages
-install_desktop_packages "$XFCE_DESKTOP" "$REMOTE_DESKTOP"
 
 # ---------- Ensure target user has a real shell ----------
 configure_user_shell() {
@@ -374,24 +274,6 @@ if $MISE; then
   install_mise_module "$MISE_SELECTORS"
 fi
 
-# ---------- Optional Kali container module ----------
-if $CLAUDE; then
-  install_ai_module
-fi
-
-if $KALI_CONTAINER; then
-  install_kali_container
-fi
-
-# ---------- Optional AI tools ----------
-if $RTK; then
-  install_rtk
-fi
-
-if $COLGREP; then
-  install_colgrep
-fi
-
 # ---------- Install dotfiles ----------
 install_dotfiles
 
@@ -414,51 +296,22 @@ install_root_dotfiles() {
 }
 install_root_dotfiles
 
-install_tmux_autostart() {
-  $TMUX_AUTOSTART || return 0
-
-  local stamp="# ----- lolterm tmux autostart -----"
-  if ! grep -qF "$stamp" "$TARGET_HOME/.bashrc" 2>/dev/null; then
-    cat >> "$TARGET_HOME/.bashrc" <<'BASHRC'
-
-# ----- lolterm tmux autostart -----
-if [[ $- == *i* ]] && [[ -t 1 ]] && [[ -z ${TMUX:-} ]] && command -v tmux &>/dev/null; then
-  tmux attach || tmux new
-fi
-# ----- /lolterm tmux autostart -----
-BASHRC
-    echo "  tmux autostart"
-  fi
-}
-install_tmux_autostart
-
 # ---------- Install bins ----------
 install_bins() {
   section "Installing helper scripts..."
   as_user mkdir -p "$TARGET_HOME/.local/bin"
   cp -f "$INSTALLER_DIR/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-setup"
-  cp -f "$INSTALLER_DIR/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-install-desktop"
   cp -f "$INSTALLER_DIR/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-configure-firewall"
   cp -f "$INSTALLER_DIR/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-update"
-  cp -f "$INSTALLER_DIR/bin/lolterm-kali-rebuild" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild"
   cp -f "$INSTALLER_DIR/bin/tmux-sessionizer" "$TARGET_HOME/.local/bin/tmux-sessionizer"
   rm -f "$TARGET_HOME/.local/bin/lolterm-update-tools"
-  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-install-desktop" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update" "$TARGET_HOME/.local/bin/lolterm-kali-rebuild" "$TARGET_HOME/.local/bin/tmux-sessionizer"
+  chmod +x "$TARGET_HOME/.local/bin/lolterm-setup" "$TARGET_HOME/.local/bin/lolterm-configure-firewall" "$TARGET_HOME/.local/bin/lolterm-update" "$TARGET_HOME/.local/bin/tmux-sessionizer"
   echo "  lolterm-setup"
-  echo "  lolterm-install-desktop"
   echo "  lolterm-configure-firewall"
   echo "  lolterm-update"
-  echo "  lolterm-kali-rebuild"
   echo "  tmux-sessionizer"
 }
 install_bins
-
-# ---------- Optional desktop and remote desktop setup ----------
-$XFCE_DESKTOP && configure_xfce_session
-if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
-  configure_xrdp_remote_desktop
-fi
-$OPEN_XRDP_FIREWALL && open_xrdp_firewall_port
 
 # ---------- Fix ownership (in case root created files via cp) ----------
 if [[ $EUID -eq 0 ]]; then
@@ -509,16 +362,6 @@ configure_git() {
   fi
 }
 configure_git
-
-setup_headless_xrdp_password() {
-  [[ "$REMOTE_DESKTOP" == "xrdp" ]] || return 0
-  [[ -n "$USER_PASSWORD" ]] || return 0
-
-  section "Configuring XRDP login password..."
-  printf '%s:%s\n' "$TARGET_USER" "$USER_PASSWORD" | sudo chpasswd
-  echo "  Password set for $TARGET_USER"
-}
-setup_headless_xrdp_password
 
 # ---------- Optional headless VPN provisioning ----------
 warn_vpn_access() {
@@ -638,10 +481,6 @@ enable_services() {
 
   sudo systemctl enable --now sshd.service
   echo "  SSH"
-
-  if [[ "$REMOTE_DESKTOP" == "xrdp" ]]; then
-    enable_xrdp_services
-  fi
 }
 enable_services
 
@@ -683,20 +522,14 @@ configure_unprivileged_ports() {
 configure_unprivileged_ports
 
 if $ENABLE_HOST_FIREWALL; then
-  configure_host_firewall "$([[ "$REMOTE_DESKTOP" == "xrdp" ]] && echo true || echo false)"
+  configure_host_firewall
 fi
 
 configure_system_settings
 
 # ---------- Interactive or headless ----------
 if $HEADLESS; then
-  if [[ "$REMOTE_DESKTOP" == "xrdp" ]] && [[ -z "$USER_PASSWORD" ]]; then
-    section "Headless mode — XRDP was installed, but no local password was set"
-    echo "Set one later with: sudo passwd $TARGET_USER"
-    echo "Then run 'lolterm-setup' from a terminal if you want the optional XRDP password reminder flow."
-  else
-    section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
-  fi
+  section "Headless mode — run 'lolterm-setup' after logging in to complete interactive setup"
 else
   as_user "$TARGET_HOME/.local/bin/lolterm-setup"
 fi
