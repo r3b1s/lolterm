@@ -14,6 +14,8 @@ Do not add migration or cleanup logic for prior installs unless the user explici
 
 Avoid destructive system changes unless the user explicitly requested them.
 
+The design rules behind these points are in `docs/design.md`; read it before changing installer behavior.
+
 ## Package Policy
 
 Prefer Fedora DNF packages whenever they exist and are suitable.
@@ -26,23 +28,29 @@ Do not pipe remotely hosted shell scripts into `bash` or `sh` as the default ins
 
 Verify GitHub or code-forge release artifacts with checksums or release-provided digests before installing them.
 
-Document every package source change in `README.md` and `SECURITY.md`.
+Document every package source change in the "Package Sources" section of `README.md`.
 
 ## Installer Structure
 
-`install.sh` handles argument parsing, user/root config installation, optional module orchestration, external verified installs, services, and final orchestration.
+`install.sh` handles argument parsing, user/root config installation, optional module orchestration, services, and final orchestration. Shared behavior belongs in `install/` modules, not inline in `install.sh`.
 
 `install/packages.sh` handles Fedora DNF packages and trusted DNF repositories.
 
+`install/nix.sh` handles the Nix packages, `nix-daemon`, and the lolterm block in `/etc/nix/nix.conf`.
+
+`install/dotfiles.sh` handles user dotfiles under `$TARGET_HOME`.
+
+`install/firewall.sh` handles the optional firewalld host firewall.
+
 `install/mise.sh` handles optional mise installation and user-selected global mise tools.
 
-`install/kali-container.sh` handles optional Kali Linux Podman container with tool wrappers and quadlet auto-start.
-
-`install/ai.sh` handles optional AI tooling (Claude Code, RTK).
+`install/container-runtime.sh` handles optional Docker CE or Podman.
 
 `bin/` contains helper scripts copied to `$TARGET_HOME/.local/bin`.
 
 `config/` contains user and optional root dotfiles copied by the installer.
+
+`docs/installer.md` describes the modules, helpers, and flag rules in more detail.
 
 ## Development
 
@@ -56,55 +64,41 @@ LOLTERM_INSTALLER_DIR=/path/to/lolterm ./install.sh <flags>
 
 This skips the clone and sources `install/*.sh` directly from your working tree. The script has `set -euo pipefail` — a command failure in any sourced module will abort the entire install.
 
-## Headless Podman Container Patterns
+### Smoke tests
 
-When installing Podman containers (via quadlet) during headless provisioning, be aware of these constraints:
-
-### D-Bus is not available in headless/root contexts
-
-`systemctl --user` communicates with the user's systemd instance over D-Bus. During headless provisioning (running as root via sudo or directly), there is no D-Bus session — commands like `systemctl --user daemon-reload` silently fail.
-
-**Fix**: Use `systemctl --user --machine="$TARGET_USER@.host"` instead of bare `systemctl --user`. This connects via the systemd-stdio-bridge without needing a D-Bus session. Requires systemd ≥ 247 (all Fedora 44 systems).
+Smoke tests run on a libvirt Fedora Cloud VM reverted to a clean snapshot for every flavor; see `docs/smoke-testing.md`.
 
 ```bash
-systemctl --user --machine="$TARGET_USER@.host" daemon-reload
-systemctl --user --machine="$TARGET_USER@.host" start kali.service
+smoke/vm.sh create      # once
+smoke/run.sh base       # or: smoke/run.sh all
 ```
 
-### Quadlet service naming
+When you add or change installer behavior, add or update the assertions in `smoke/tests/`.
 
-`kali.container` → `kali.service` (not `kali-container.service`). The service name is derived from the filename minus the `.container` extension. Do not use `systemctl enable` on quadlet-generated units — they are transient. The `[Install]` section is applied at generation time by the quadlet generator.
+### Headless systemd --user calls
 
-### Wrapper auto-start
+`systemctl --user` talks to the user's systemd instance over D-Bus. During headless provisioning (running as root via sudo, or from cloud-init) there is no D-Bus session, so commands like `systemctl --user enable` silently fail.
 
-Tool wrappers that exec into a container should include a preflight check that auto-starts the container if it exists but isn't running:
+Use `systemctl --user --machine="$TARGET_USER@.host"` instead. It connects through systemd-stdio-bridge without a D-Bus session, and requires systemd ≥ 247 (all Fedora 44 systems).
 
 ```bash
-if ! podman container exists kali 2>/dev/null; then
-  echo "Container not found. Run: rebuild-command" >&2
-  exit 1
-fi
-if [[ "$(podman inspect --format '{{.State.Status}}' kali 2>/dev/null)" != "running" ]]; then
-  podman start kali >/dev/null
-fi
+systemctl --user --machine="$TARGET_USER@.host" enable --now podman.socket
 ```
-
-This makes the wrappers resilient in headless environments where the quadlet service may not have been started during provisioning.
 
 ## Flags
 
 Root configs are opt-in with `--root-config`.
 
-Tmux autostart is opt-in with `--tmux-autostart` and must stay interactive-shell-only.
-
-Headless provisioning uses `--headless` and can accept `--ssh-key`.
+Headless provisioning uses `--headless` and can accept `--ssh-key` or `--ssh-key-file`.
 
 Mise is opt-in with `--mise`, optionally followed by comma-separated mise selectors.
+
+The Kali container, XFCE/XRDP desktop, local password flags, tmux autostart, RTK, colgrep, and Claude Code were removed deliberately; do not reintroduce them without an explicit request.
 
 ## Documentation
 
 When adding, removing, or changing installed packages, update the README package list.
 
-When adding, removing, or changing non-DNF sources, update `SECURITY.md` with the trust and update model.
+When adding, removing, or changing non-DNF sources, update the README "Package Sources" section with the trust and update model.
 
-When runtime source behavior changes, update both `README.md` and `SECURITY.md` in the same change.
+When a design rule changes, update `docs/design.md` in the same change.

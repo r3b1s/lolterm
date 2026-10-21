@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- `--kali-container` and the whole Kali container module, its allowlists, `lolterm-kali-rebuild`, and `lolterm-kali-update`.
+- `--xfce-desktop`, `--remote-desktop`, `--open-xrdp-firewall`, `--user-password`, `--user-password-file`, `lolterm-install-desktop`, the XRDP password step in `lolterm-setup`, `lolterm-configure-firewall --allow-xrdp`, and `local-system-config/`.
+- `--tmux-autostart`.
+- `--rtk`, `--colgrep`, `--claude`, and `install/ai.sh`; `lolterm-update` no longer updates RTK, colgrep, or Kali.
+- OpenSpec (`openspec/`) and the `.pi/` agent directory (OpenSpec prompts and skills, `lolterm-navigate`), replaced by `docs/`.
+- `SECURITY.md`, `CONCERNS.md`, and `sectools-track1.md`. Package source records now live in the README "Package Sources" section.
+- The container-based smoke tests (`ci/smoke/`) and the Forgejo smoke workflow.
+
+### Added
+- The Nix package manager (`nix`, `nix-daemon`) from Fedora packages in the default install. `nix-daemon.service` is enabled, following Fedora's nix README, and a marked block in `/etc/nix/nix.conf` sets `extra-experimental-features = nix-command flakes` and `extra-trusted-users = <install user>`.
+- `install/dotfiles.sh`: `install_dotfiles()` moved out of `install.sh` unchanged so other entry points can share it.
+- `install/nix.sh` and `install/firewall.sh` (the host firewall operation, formerly in `install/operations.sh`).
+- `smoke/`: a libvirt smoke harness that builds a signature-verified, fully updated Fedora Cloud 44 VM with a golden clone and a `clean` snapshot, and runs flavors (`base`, `mise`, `mise-tools`, `docker`, `podman`, `firewall`) against it.
+- `docs/design.md`, `docs/installer.md`, and `docs/smoke-testing.md`.
+
+### Fixed
+- `--podman` now installs `podman-docker` and `podman-compose` on Fedora Cloud, which ships `podman` preinstalled; the module previously saw the `podman` command and skipped the whole install.
+
 ### Added
 - Kali container GUI tool integration: tool wrappers and shell functions now forward `DISPLAY` and `XAUTHORITY` into the container, enabling graphical tools (Wireshark, Maltego, etc.) to connect to the host X server via the mounted X11 socket.
 - New `install/kali-container/tools-gui.txt` allowlist defines which tools get XFCE menu entries: wireshark, maltego, rizin-cutter, edb-debugger, ettercap-graphical, chromium.

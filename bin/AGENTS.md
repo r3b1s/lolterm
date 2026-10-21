@@ -16,6 +16,6 @@ Do not add helper scripts that rerun the full bootstrap installer on an existing
 
 `lolterm-configure-firewall` configures the optional firewalld host firewall.
 
-`lolterm-update` updates Fedora DNF packages and lolterm-managed non-DNF tools such as RTK.
+`lolterm-update` updates Fedora DNF packages and lolterm-managed non-DNF tools such as lazydocker.
 
-If a helper adds or removes managed tools, update `README.md` and `SECURITY.md` in the same change.
+If a helper adds or removes managed tools, update `README.md` in the same change.

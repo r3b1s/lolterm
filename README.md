@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, local CI workflow testing with `act`, Neovim/LazyVim, Rust from Fedora packages, optional mise-managed runtimes, optional XFCE desktop and XRDP remote desktop access, and optional root shell configuration.
+Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, local CI workflow testing with `act`, Neovim/LazyVim, Rust from Fedora packages, the Nix package manager, optional mise-managed runtimes, an optional container runtime, and optional root shell configuration.
 
 ## Quick Start
 
@@ -37,37 +37,11 @@ bash install.sh --headless --netbird-setup-key "nb_setup_key..."
 bash install.sh --headless --tailscale-auth-key "tskey-auth-..."
 ```
 
-For a cloud desktop reachable with an RDP client:
-
-```bash
-bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
-```
-
-For Claude Code (AI coding agent in the terminal):
-
-```bash
-bash install.sh --claude
-```
-
 For a container runtime (Docker CE with lazydocker, or Podman):
 
 ```bash
 bash install.sh --docker
 bash install.sh --podman
-```
-
-For a Kali Linux security tools environment inside a container (auto-detects Docker or Podman):
-
-```bash
-bash install.sh --kali-container
-bash install.sh --docker --kali-container
-bash install.sh --podman --kali-container
-```
-
-To add the desktop later on an existing lolterm host:
-
-```bash
-lolterm-install-desktop
 ```
 
 Log out and back in when installation completes.
@@ -84,31 +58,13 @@ Log out and back in when installation completes.
 
 `--root-config`: Install normal user configs plus optional root Starship, Bash, and readline configs.
 
-`--tmux-autostart`: Add an interactive-shell-only tmux autostart block.
-
 `--mise [SELECTORS]`: Install mise as an optional runtime manager. With no selector list, only mise is installed. With a comma-separated selector list such as `node@lts,pnpm,bun,python`, each selector is installed globally through mise and pinned at the resolved version.
 
-`--xfce-desktop`: Install the XFCE desktop environment.
-
-`--remote-desktop xrdp|none`: Select remote desktop mode. `xrdp` installs and enables XRDP for RDP clients.
-
-`--open-xrdp-firewall`: Open `3389/tcp` with firewalld when `--remote-desktop xrdp` is selected.
-
-`--enable-host-firewall`: Configure an explicit firewalld host firewall with deny-by-default inbound posture, SSH allowed, and XRDP allowed only when `--remote-desktop xrdp` is selected. In headless mode this requires `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`.
-
-`--user-password PASSWORD`: In headless XRDP installs, set the target user's local password non-interactively for XRDP logins. Avoid this on shared shells because command-line secrets may end up in shell history or process listings.
+`--enable-host-firewall`: Configure an explicit firewalld host firewall with deny-by-default inbound posture and SSH allowed. In headless mode this requires `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`.
 
 `--docker`: Install Docker CE from the official Docker repository. Installs `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, and `docker-compose-plugin`. Enables SELinux support in the Docker daemon, starts `docker.service`, and installs `lazydocker` from the latest GitHub release (SHA-256 verified). Mutually exclusive with `--podman`.
 
 `--podman`: Install Podman from Fedora DNF packages. Installs `podman`, `podman-docker`, and `podman-compose`. Enables the Podman socket for the target user. Mutually exclusive with `--docker`.
-
-To combine a container runtime with Kali container:
-
-`--docker --kali-container`: Use Docker as the Kali container runtime. Generates Docker Compose lifecycle config and `docker exec`-based tool wrappers.
-
-`--podman --kali-container`: Use Podman as the Kali container runtime (default fallback).
-
-`--kali-container`: Install a Kali Linux container with security testing tools. The container runtime is auto-detected (Docker preferred, Podman fallback). Builds a `lolterm-kali` image from `kalilinux/kali-rolling`, installs lifecycle management (Docker Compose or Podman quadlet), and generates native shell wrapper scripts for common tools. GUI tools (Wireshark, Maltego, etc.) get XFCE menu entries with X11 display forwarding. Run `kali-sh` for an interactive Kali shell.
 
 `--git-name NAME`: Set the global Git `user.name` during provisioning. Useful in headless mode to skip the interactive `lolterm-setup` prompt. Also sets `init.defaultBranch` to `main`.
 
@@ -122,12 +78,6 @@ To combine a container runtime with Kali container:
 
 `--ssh-key-file FILE`: Read an SSH public key from a file and configure it identically to `--ssh-key`. Use this instead of `--ssh-key` when you want to keep the key off the command line. Mutually exclusive with `--ssh-key`.
 
-`--rtk`: Install RTK (token-optimized CLI proxy) from the latest upstream GitHub release RPM after SHA-256 checksum verification. RTK is not installed by default.
-
-`--colgrep`: Install colgrep (semantic grep for code) from the latest upstream GitHub release tarball after SHA-256 checksum verification. colgrep is not installed by default.
-
-`--user-password-file FILE`: In headless XRDP installs, read the target user's local password from `FILE`. Use this instead of `--user-password` when you want to avoid putting the password directly on the command line.
-
 `--help`: Show installer options.
 
 ## What You Get
@@ -136,15 +86,13 @@ To combine a container runtime with Kali container:
 
 **Terminal**: tmux, starship, act, fzf, zoxide, eza, bat, ripgrep, fd, direnv, btop, tldr, yq, gum.
 
+**Nix**: the Nix package manager from Fedora packages, with `nix-daemon` enabled and flakes plus the installing user trusted in `/etc/nix/nix.conf`.
+
 **Editor**: Neovim with LazyVim and oxocarbon, plus a separate `nvim-notes` LazyVim profile available through `notes`. Cursor stays centered while navigating.
 
 **Git**: git and GitHub CLI.
 
 **Networking**: SSH server and optional Tailscale or NetBird setup during `lolterm-setup` or headless provisioning.
-
-**Desktop**: Optional XFCE desktop environment from Fedora packages.
-
-**Remote desktop**: Optional XRDP access for RDP clients, configured separately from the desktop environment.
 
 ## Package List
 
@@ -184,6 +132,8 @@ eza
 gum
 rust
 cargo
+nix
+nix-daemon
 act-cli
 mise optional with --mise
 node optional with --mise selector
@@ -191,18 +141,12 @@ pnpm optional with --mise selector
 bun optional with --mise selector
 python optional with --mise selector
 starship
-rtk optional with --rtk
-colgrep optional with --colgrep
 tmux-sessionizer
 LazyVim starter
 nvim-notes LazyVim profile
 Tailscale optional
 Netbird optional
 lolterm NetBird SELinux policy optional
-@xfce-desktop optional
-xrdp optional
-xorgxrdp optional
-xrdp-selinux optional
 docker-ce optional with --docker
 docker-ce-cli optional with --docker
 containerd.io optional with --docker
@@ -212,7 +156,6 @@ lazydocker optional with --docker
 podman optional with --podman
 podman-docker optional with --podman
 podman-compose optional with --podman
-claude-code optional with --claude
 firewalld optional with --enable-host-firewall
 ```
 
@@ -220,15 +163,13 @@ firewalld optional with --enable-host-firewall
 
 Fedora DNF packages are preferred whenever available.
 
-`mise` is installed only when `--mise` is selected, through the upstream-maintainer COPR documented by mise for Fedora/RHEL.
+`mise` is installed only when `--mise` is selected, from the `jdxcode/mise` COPR, the dnf install path mise documents for Fedora 43+ (https://mise.jdx.dev/installing-mise.html, checked 2026-10). Update with `sudo dnf upgrade mise`.
+
+`nix` and `nix-daemon` are Fedora packages. lolterm enables `nix-daemon.service` (not the socket unit, which cannot bind under SELinux on Fedora's `/nix` labels; Fedora's nix README enables only the service) and appends a marked block to `/etc/nix/nix.conf` with `extra-experimental-features = nix-command flakes` and `extra-trusted-users = <install user>`. Fedora ships that file as `%config(noreplace)`, so package updates keep the block and put new upstream defaults in `nix.conf.rpmnew`.
 
 `starship` is installed from the `atim/starship` COPR.
 
 `act-cli` is installed from the upstream-documented `goncalossilva/act` COPR and provides the `act` command.
-
-`rtk` is installed on x86_64 only when `--rtk` is selected, from the latest upstream GitHub release RPM after SHA-256 verification.
-
-`colgrep` is installed on x86_64 only when `--colgrep` is selected, from the latest upstream GitHub release tarball after SHA-256 verification.
 
 User-selected runtime tools such as `node`, `pnpm`, `bun`, and `python` are installed only when requested through `--mise` selectors. The installer runs `mise use --pin -g <selector>` so resolved global versions are pinned at provisioning time. Future runtime changes are owned by the user through mise.
 
@@ -236,185 +177,37 @@ LazyVim is installed from the official LazyVim starter repository for both the b
 
 NetBird provisioning installs a small local SELinux policy module on SELinux-enabled systems. The module gives NetBird its own `netbird_t` service domain and permits only that domain to transition into the authenticated user's shell domain for NetBird SSH.
 
-XFCE is installed from Fedora's `xfce-desktop` package group when `--xfce-desktop` is selected. XRDP, xorgxrdp, and xrdp-selinux are installed from Fedora DNF packages when `--remote-desktop xrdp` is selected. firewalld is installed from Fedora DNF packages when `--enable-host-firewall` requires it.
+firewalld is installed from Fedora DNF packages when `--enable-host-firewall` requires it.
 
-`claude-code` is installed only when `--claude` is selected, from the Anthropic official signed DNF repository (https://code.claude.com/docs/en/setup#install-with-linux-package-managers). Trust basis: official project-owned repository with GPG signing. Repository fingerprint: `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE`.
+`docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, and `docker-compose-plugin` are installed only with `--docker`, from Docker's official signed RPM repository (GPG fingerprint `060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35`). `lazydocker` comes from its latest GitHub release after SHA-256 verification and is updated by `lolterm-update`.
 
-lazygit, uv, and global npm coding agents are intentionally not installed right now.
-
-## Desktop and Remote Desktop
-
-`--xfce-desktop` installs and configures the Fedora XFCE desktop. It writes an executable, lolterm-marked `~/.Xclients` containing `exec startxfce4` when the file is absent or already lolterm-managed; unmarked custom files are left unchanged.
-
-`--remote-desktop xrdp` is separate remote access setup. It requires `--xfce-desktop`, installs Fedora XRDP packages, configures XRDP for Xorg/xorgxrdp, and enables XRDP only when explicitly requested.
-
-Install XFCE and XRDP during initial provisioning:
-
-```bash
-bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp
-```
-
-To also set the local account password non-interactively for XRDP logins during a headless install:
-
-```bash
-bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp --user-password 'choose-a-strong-password'
-```
-
-Or read the password from a file instead:
-
-```bash
-bash install.sh --headless --ssh-key "ssh-ed25519 AAAAC3..." --xfce-desktop --remote-desktop xrdp --user-password-file /path/to/password.txt
-```
-
-Install XFCE and XRDP later on an existing lolterm host:
-
-```bash
-lolterm-install-desktop
-```
-
-The follow-up command performs only focused desktop/XRDP operations. It does not rerun first-time bootstrap work such as base package upgrades, dotfile installation, runtime setup, VPN setup, or SSH configuration.
-
-XRDP logins use the Fedora account password for the target user, not SSH keys. When XRDP was explicitly requested during install, the interactive `lolterm-setup` phase can optionally prompt to set or change that password for XRDP access.
-
-lolterm configures XRDP as Xorg/xorgxrdp-only with `autorun=Xorg`, no active Xvnc session path, `security_layer=tls`, and `ssl_protocols=TLSv1.3`. Clients that cannot negotiate TLSv1.3 are expected to fail rather than fall back to weaker protocols.
-
-XRDP uses Fedora's default package-managed self-signed certificate paths. Configure clients with trust-on-first-use or certificate fingerprint pinning; do not disable certificate verification for convenience.
-
-XRDP listens on `3389/tcp`. The installer does not open this port by default. Prefer access through a VPN, private network, security-group allowlist, or SSH tunnel.
-
-To open `3389/tcp` with firewalld during install, pass `--open-xrdp-firewall`:
-
-```bash
-lolterm-install-desktop --open-xrdp-firewall
-```
+lazygit, uv, and global npm packages are intentionally not installed right now.
 
 ## Host Firewall
 
 By default, lolterm preserves Fedora Cloud's baseline network posture and does not impose a custom host firewall policy. Use cloud firewalls, security groups, VPN policy, or other platform controls as appropriate.
 
-For hosts without an external firewall, pass `--enable-host-firewall` during install or run `lolterm-configure-firewall` later. This enables firewalld with a `lolterm` zone, deny-by-default inbound behavior, and SSH allowed before the firewall is applied. XRDP is allowed only when XRDP was explicitly requested during install, or when `lolterm-configure-firewall --allow-xrdp` is used later.
+For hosts without an external firewall, pass `--enable-host-firewall` during install or run `lolterm-configure-firewall` later. This enables firewalld with a `lolterm` zone, deny-by-default inbound behavior, and SSH allowed before the firewall is applied.
 
 In headless installs, `--enable-host-firewall` requires an explicit access path: `--ssh-key`, `--netbird-setup-key`, or `--tailscale-auth-key`. lolterm does not currently add VPN-specific firewall allowances; NetBird and Tailscale firewall behavior should be reviewed before adding such rules.
 
-## Kali Container
+## Smoke Tests
 
-`--kali-container` installs a Kali Linux environment inside a container (Docker or Podman) with native shell integration and GUI tool support for XFCE desktops.
-
-The container runtime is auto-detected at install time: Docker is preferred when available, followed by Podman. If neither is found, Podman is installed as a fallback. The detected runtime is stored in `~/.local/share/lolterm/kali-container/runtime.txt`.
-
-### Docker Path
-
-When Docker is the runtime, the installer creates a `compose.yaml` at `~/.config/containers/systemd/compose.yaml` and manages the container via `docker compose up -d`. Tool wrappers use `docker exec` and auto-start with `docker start`. lazydocker is installed alongside.
-
-### Podman Path
-
-When Podman is the runtime, the installer follows the traditional path: a Podman quadlet (`~/.config/containers/systemd/kali.container`) for container lifecycle and boot-start via systemd --user with linger, and tool wrappers using `podman exec`.
-
-The installer builds a `lolterm-kali` image from `kalilinux/kali-rolling` and generates native `~/.local/bin/` wrapper scripts so most tools are invokable directly.
-
-The container runs privileged (rootless, scoped to the user namespace) to support raw sockets, packet injection, and monitor-mode tools. Privileged-tier tools additionally pass `--privileged` at exec time.
+Smoke tests run the installer on a real Fedora Cloud 44 VM under libvirt (`qemu:///system`), reverted to a clean, fully updated snapshot before every flavor. Build the VM once, then run flavors against your working tree:
 
 ```bash
-bash install.sh --kali-container
+smoke/vm.sh create
+smoke/run.sh base
+smoke/run.sh all
 ```
 
-### Tool Invocation
-
-Most curated tools get native shell wrappers:
-
-```bash
-nmap -sV target              # native wrapper (uses podman exec)
-aircrack-ng -a wlan0mon      # native wrapper with --privileged
-kali msfconsole              # fallback prefix for any tool
-kali-sh                      # interactive Kali shell
-```
-
-Two allowlist files control which tools get wrappers:
-
-- `tools.txt` — tools run via plain `podman exec`
-- `tools-privileged.txt` — tools run via `podman exec --privileged` (raw sockets, wireless, sniffing)
-
-Both are copied to `~/.local/share/lolterm/kali-container/` and can be edited locally.
-
-### Adding Packages
-
-Edit the local copy of the package list and rebuild:
-
-```bash
-vim ~/.local/share/lolterm/kali-container/packages.txt
-lolterm-kali-rebuild
-```
-
-### Updating
-
-```bash
-lolterm-kali-update       # update packages inside running container
-lolterm-kali-rebuild      # full rebuild (image + container + wrappers)
-```
-
-The `lolterm-update` script also updates Kali container packages when the container exists.
-
-### SELinux
-
-On SELinux Enforcing systems, the quadlet uses `SecurityLabelDisable=true` to disable SELinux separation for the container, allowing it to read and write mounted directories without relabeling. Rootless podman cannot apply `:Z` relabeling to user home directories, so this is the correct approach for rootless Kali container operation.
-
-### GUI Tools
-
-GUI tools in the Kali container can connect to the host X server through the mounted X11 socket. This enables graphical Kali tools (Wireshark, Maltego, rizin-cutter, etc.) to appear as native windows on the XFCE desktop or any X11 session.
-
-Tool wrapper scripts and the `kali()` / `kali-sh()` shell functions forward `DISPLAY` and `XAUTHORITY` into the container. When `DISPLAY` is unset (headless or SSH session), GUI tools fail gracefully with "cannot open display" — no regression for CLI-only use.
-
-#### GUI Tool Allowlist
-
-The `install/kali-container/tools-gui.txt` file defines which tools get XFCE menu entries:
-
-```
-wireshark
-maltego
-rizin-cutter
-edb-debugger
-ettercap-graphical
-chromium
-```
-
-Each tool in this list gets a `.desktop` entry at `~/.local/share/applications/kali-<tool>.desktop`, making it discoverable in the XFCE start menu under the Security category with the Kali logo icon.
-
-#### Desktop Integration
-
-- `.desktop` entries use the tool wrapper script as the `Exec` target, inheriting all container setup (auto-start, display forwarding)
-- The Kali official logo is extracted from the container image and placed at `~/.local/share/icons/hicolor/scalable/apps/kali-logo.svg`
-- Entries follow the overwrite-only pattern — stale entries are harmless (desktop environments show broken entries until clicked)
-- Run `lolterm-kali-rebuild` to regenerate desktop entries and icons after editing `tools-gui.txt`
-
-## CI Smoke Tests
-
-The canonical smoke workflow lives at `.forgejo/workflows/smoke.yml` and runs four Fedora 44 systemd-container flavors: base, mise-only, mise with selected tools, and desktop/XRDP. VPN provisioning and host firewall assertions are intentionally out of scope for this first smoke layer.
-
-Run one smoke flavor directly with Podman:
-
-```bash
-ci/smoke/run.sh base
-ci/smoke/run.sh mise
-ci/smoke/run.sh mise-tools
-ci/smoke/run.sh desktop
-```
-
-Run the Forgejo workflow locally with `act` by pointing it at the Forgejo workflow path. The smoke jobs create nested privileged systemd containers, so the local runner must have Podman and allow privileged containers. For a Podman-backed `act` run:
-
-```bash
-systemctl --user enable --now podman.socket
-act -W .forgejo/workflows/smoke.yml \
-  --container-daemon-socket "unix://$XDG_RUNTIME_DIR/podman/podman.sock" \
-  --container-options --privileged
-```
-
-The smoke helper sets `LOLTERM_INSTALLER_DIR=/workspace` so CI validates the checked-out repository instead of cloning the default upstream source. The desktop lane also installs a container-only `udevadm` no-op shim before package installation because some Fedora desktop package scriptlets try to trigger host-backed `/sys` uevents that are not writable from the smoke container.
+See [docs/smoke-testing.md](docs/smoke-testing.md) for how the VM is built and verified, the flavors, and recovery from the golden clone.
 
 ## Updating
 
 lolterm is intended as run-once bootstrap for fresh, ephemeral environments. It does not ship a helper to fetch newer lolterm sources and replay the full installer on an existing host.
 
-Update Fedora-managed packages and lolterm-managed non-DNF tools (currently RTK):
+Update Fedora-managed packages and lolterm-managed non-DNF tools (currently lazydocker):
 
 ```bash
 lolterm-update
@@ -480,7 +273,7 @@ Prefix q            reload config
 
 ```bash
 tdl bash
-tdl "rtk --help" bash
+tdl btop bash
 ```
 
 `tdlm <cmd> [cmd2]` runs `tdl` in a new tmux window for every subdirectory.
@@ -501,7 +294,7 @@ Headless mode installs non-interactively, adds the SSH key to `~/.ssh/authorized
 
 Add `--netbird-setup-key`, `--tailscale-auth-key`, or both to provision VPNs during headless installation.
 
-After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, optional additional SSH keys, and XRDP password setup when XRDP was explicitly requested during install, using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
+After first login, `lolterm-setup` walks through git identity, GitHub auth, VPN choice, and optional additional SSH keys, using Gum prompts. Interactive VPN setup offers browser-link auth, setup/auth key auth, or manual authentication later.
 
 Review NetBird and Tailscale access controls before authenticating a server. Browser-link login usually enrolls the endpoint under the current user and may grant broad peer access if ACLs, groups, tags, or setup-key policies are not restricted.
 
@@ -509,10 +302,15 @@ Review NetBird and Tailscale access controls before authenticating a server. Bro
 
 ```text
 install.sh                         entry point
-install/packages.sh                Fedora packages and approved external installs
-ci/smoke/run.sh                    Fedora 44 systemd-container smoke runner
-ci/smoke/Containerfile             Smoke-test container image
-.forgejo/workflows/smoke.yml       Forgejo/act smoke workflow
+install/packages.sh                Fedora packages and approved COPRs
+install/nix.sh                     Nix packages, daemon, and nix.conf block
+install/dotfiles.sh                user dotfiles (shared by installers)
+install/firewall.sh                optional firewalld host firewall
+install/mise.sh                    optional mise module
+install/container-runtime.sh       optional Docker CE or Podman
+smoke/vm.sh                        builds and manages the smoke-test VM
+smoke/run.sh                       runs smoke flavors against the VM
+docs/                              design, installer structure, smoke testing
 config/starship.toml               user prompt
 config/root/starship.toml          optional root prompt
 config/root/shell/bash/appendrc    optional root bash block
@@ -524,7 +322,6 @@ config/shell/sessionizer-dirs      tmux-sessionizer project directory config
 config/nvim/lua/config/            LazyVim overrides
 config/nvim-notes/                 nvim-notes LazyVim profile overrides
 bin/lolterm-setup                  interactive post-install config
-bin/lolterm-install-desktop        installs optional XFCE/XRDP desktop later
 bin/lolterm-configure-firewall     configures the optional host firewall later
 bin/lolterm-update                 updates DNF packages and lolterm-managed non-DNF tools
 bin/tmux-sessionizer              fzf-powered tmux project session switcher
