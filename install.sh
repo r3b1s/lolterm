@@ -243,6 +243,7 @@ section "Installing lolterm on Fedora..."
 
 # ---------- Source installer operations ----------
 source "$INSTALLER_DIR/install/packages.sh"
+source "$INSTALLER_DIR/install/nix.sh"
 source "$INSTALLER_DIR/install/dotfiles.sh"
 source "$INSTALLER_DIR/install/firewall.sh"
 source "$INSTALLER_DIR/install/mise.sh"
@@ -250,6 +251,7 @@ source "$INSTALLER_DIR/install/container-runtime.sh"
 
 # ---------- Install packages ----------
 install_packages
+install_nix
 
 # ---------- Ensure target user has a real shell ----------
 configure_user_shell() {
