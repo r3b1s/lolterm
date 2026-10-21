@@ -341,6 +341,7 @@ section "Installing lolterm on Fedora..."
 # ---------- Source installer operations ----------
 source "$INSTALLER_DIR/install/operations.sh"
 source "$INSTALLER_DIR/install/packages.sh"
+source "$INSTALLER_DIR/install/dotfiles.sh"
 source "$INSTALLER_DIR/install/mise.sh"
 source "$INSTALLER_DIR/install/kali-container.sh"
 source "$INSTALLER_DIR/install/ai.sh"
@@ -392,78 +393,6 @@ if $COLGREP; then
 fi
 
 # ---------- Install dotfiles ----------
-install_dotfiles() {
-  section "Installing dotfiles..."
-
-  # Shell config
-  as_user mkdir -p "$TARGET_HOME/.config/shell"
-  cp -f "$INSTALLER_DIR/config/shell/aliases" "$TARGET_HOME/.config/shell/aliases"
-  cp -f "$INSTALLER_DIR/config/shell/tmux_fns" "$TARGET_HOME/.config/shell/tmux_fns"
-  # sessionizer-dirs: don't overwrite user's customized config
-  cp -n "$INSTALLER_DIR/config/shell/sessionizer-dirs" "$TARGET_HOME/.config/shell/sessionizer-dirs" 2>/dev/null || true
-  echo "  Shell aliases and functions"
-
-  # Tmux
-  as_user mkdir -p "$TARGET_HOME/.config/tmux"
-  cp -f "$INSTALLER_DIR/config/tmux/tmux.conf" "$TARGET_HOME/.config/tmux/tmux.conf"
-  echo "  Tmux config"
-
-  # Starship
-  as_user mkdir -p "$TARGET_HOME/.config"
-  cp -f "$INSTALLER_DIR/config/starship.toml" "$TARGET_HOME/.config/starship.toml"
-  echo "  Starship prompt"
-
-  # Neovim (LazyVim)
-  if [ ! -d "$TARGET_HOME/.config/nvim" ]; then
-    as_user git clone --depth 1 https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
-    rm -rf "$TARGET_HOME/.config/nvim/.git"
-  fi
-  as_user mkdir -p "$TARGET_HOME/.config/nvim/lua/config" "$TARGET_HOME/.config/nvim/lua/plugins"
-  cp -f "$INSTALLER_DIR/config/nvim/lua/config/options.lua" "$TARGET_HOME/.config/nvim/lua/config/options.lua"
-  cp -f "$INSTALLER_DIR/config/nvim/lua/config/keymaps.lua" "$TARGET_HOME/.config/nvim/lua/config/keymaps.lua"
-  cp -f "$INSTALLER_DIR/config/nvim/lua/plugins/colorscheme.lua" "$TARGET_HOME/.config/nvim/lua/plugins/colorscheme.lua"
-  cp -f "$INSTALLER_DIR/config/nvim/lua/plugins/bullets.lua" "$TARGET_HOME/.config/nvim/lua/plugins/bullets.lua"
-  echo "  Neovim (LazyVim + oxocarbon)"
-
-  # Neovim notes profile (LazyVim)
-  if [ ! -d "$TARGET_HOME/.config/nvim-notes" ]; then
-    as_user git clone --depth 1 https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim-notes"
-    rm -rf "$TARGET_HOME/.config/nvim-notes/.git"
-  fi
-  as_user mkdir -p "$TARGET_HOME/.config/nvim-notes"
-  cp -R "$INSTALLER_DIR/config/nvim-notes"/. "$TARGET_HOME/.config/nvim-notes"/
-  echo "  Neovim notes profile (LazyVim + oxocarbon)"
-
-  # .bashrc additions
-  if ! grep -qF "# ----- lolterm shell config -----" "$TARGET_HOME/.bashrc" 2>/dev/null; then
-    cat >> "$TARGET_HOME/.bashrc" <<'BASHRC'
-
-# ----- lolterm shell config -----
-export EDITOR=nvim
-export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
-
-if [[ $- == *i* ]]; then
-  # Source shell config
-  [ -f "$HOME/.config/shell/aliases" ] && source "$HOME/.config/shell/aliases"
-  [ -f "$HOME/.config/shell/tmux_fns" ] && source "$HOME/.config/shell/tmux_fns"
-
-  # Starship prompt
-  command -v starship &>/dev/null && eval "$(starship init bash)"
-
-  # Zoxide
-  command -v zoxide &>/dev/null && eval "$(zoxide init bash)"
-
-  # Direnv
-  command -v direnv &>/dev/null && eval "$(direnv hook bash)"
-
-  # Mise
-  command -v mise &>/dev/null && eval "$(mise activate bash)"
-fi
-# ----- /lolterm shell config -----
-BASHRC
-    echo "  .bashrc"
-  fi
-}
 install_dotfiles
 
 install_root_dotfiles() {
