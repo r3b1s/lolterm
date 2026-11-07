@@ -4,7 +4,7 @@ This repository maintains `lolterm`, a Fedora-focused development environment in
 
 ## Scope
 
-The installer targets Fedora 44 developer systems and fresh Fedora Cloud instances.
+The installer targets Fedora 45 developer systems and fresh Fedora Cloud instances.
 
 Keep changes small, idempotent, and safe to rerun.
 
@@ -70,11 +70,11 @@ This skips the clone and sources `install/*.sh` directly from your working tree.
 
 ### Smoke tests
 
-Smoke tests run on a libvirt Fedora Cloud VM reverted to a clean snapshot for every flavor; see `docs/smoke-testing.md`.
+Smoke tests run in an Incus Fedora 45 system container reverted to a clean snapshot for every flavor; see `docs/smoke-testing.md`.
 
 ```bash
-smoke/vm.sh create      # once
-smoke/run.sh base       # or: smoke/run.sh all
+smoke/environment.sh create      # once
+smoke/run.sh base               # or: smoke/run.sh all
 ```
 
 When you add or change installer behavior, add or update the assertions in `smoke/tests/`.
@@ -83,7 +83,7 @@ When you add or change installer behavior, add or update the assertions in `smok
 
 `systemctl --user` talks to the user's systemd instance over D-Bus. During headless provisioning (running as root via sudo, or from cloud-init) there is no D-Bus session, so commands like `systemctl --user enable` silently fail.
 
-Use `systemctl --user --machine="$TARGET_USER@.host"` instead. It connects through systemd-stdio-bridge without a D-Bus session, and requires systemd ≥ 247 (all Fedora 44 systems).
+Use `systemctl --user --machine="$TARGET_USER@.host"` instead. It connects through systemd-stdio-bridge without a D-Bus session, and requires systemd ≥ 247 (all Fedora 45 systems).
 
 ```bash
 systemctl --user --machine="$TARGET_USER@.host" enable --now podman.socket

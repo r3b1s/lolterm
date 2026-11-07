@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install-on-qubes.sh — provision a Qubes OS Fedora TemplateVM with lolterm.
 #
-# Run as root inside the TemplateVM (e.g. a clone of fedora-44-xfce). Nothing
+# Run as root inside the TemplateVM (e.g. a clone of fedora-45-xfce). Nothing
 # runs in dom0, and the template stays offline: git clones go through the
 # Qubes updates proxy, which dnf already uses.
 #

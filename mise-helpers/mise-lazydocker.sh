@@ -44,7 +44,8 @@ if [[ "$RUNTIME" == podman ]]; then
   fi
 
   echo "==> Pointing lazydocker at the rootless Podman socket..."
-  systemctl --user enable --now podman.socket
+  systemctl --user enable --now podman.socket 2>/dev/null || \
+    systemctl --user --machine="$(id -un)@.host" enable --now podman.socket
   socket="unix://${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
   # In mise's global [env], so every Docker-API client (including lazydocker
   # and the docker compose plugin) uses Podman in shells with mise activated.

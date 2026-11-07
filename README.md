@@ -1,6 +1,6 @@
 # lolterm
 
-Fedora 44 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, Rust from Fedora packages, the Nix package manager, optional mise-managed runtimes, an optional container runtime, and optional root shell configuration.
+Fedora 45 development environment installer for fresh cloud or workstation systems. It sets up terminal tooling, Neovim/LazyVim, Rust from Fedora packages, the Nix package manager, optional mise-managed runtimes, an optional container runtime, and optional root shell configuration.
 
 ## Quick Start
 
@@ -206,15 +206,15 @@ In headless installs, `--enable-host-firewall` requires an explicit access path:
 
 ## Smoke Tests
 
-Smoke tests run the installer on a real Fedora Cloud 44 VM under libvirt (`qemu:///system`), reverted to a clean, fully updated snapshot before every flavor. Build the VM once, then run flavors against your working tree:
+Smoke tests run the installer on a Fedora 45 system container using Incus, reverted to a clean, fully updated snapshot before every flavor. Build the environment once, then run flavors against your working tree:
 
 ```bash
-smoke/vm.sh create
+smoke/environment.sh create
 smoke/run.sh base
 smoke/run.sh all
 ```
 
-See [docs/smoke-testing.md](docs/smoke-testing.md) for how the VM is built and verified, the flavors, and recovery from the golden clone.
+See [docs/smoke-testing.md](docs/smoke-testing.md) for how the test environment is built and verified, the flavors, and snapshot lifecycle.
 
 ## Updating
 
@@ -323,8 +323,8 @@ install/dotfiles.sh                user dotfiles (shared by installers)
 install/firewall.sh                optional firewalld host firewall
 install/mise.sh                    optional mise module
 install/container-runtime.sh       optional Docker CE or Podman
-smoke/vm.sh                        builds and manages the smoke-test VM
-smoke/run.sh                       runs smoke flavors against the VM
+smoke/environment.sh               builds and manages the smoke-test environment
+smoke/run.sh                       runs smoke flavors against the test environment
 docs/                              design, installer structure, smoke testing
 config/starship.toml               user prompt
 config/root/starship.toml          optional root prompt
@@ -344,4 +344,4 @@ bin/tmux-sessionizer              fzf-powered tmux project session switcher
 
 ## Requirements
 
-Fedora 44, sudo, internet access, and enough disk space for development tools and any optional runtimes you request.
+Fedora 45, sudo, internet access, and enough disk space for development tools and any optional runtimes you request.

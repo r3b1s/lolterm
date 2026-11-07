@@ -22,7 +22,7 @@ install_docker() {
   # Remove legacy and Fedora-provided conflicting packages
   # Fedora's moby-engine and docker-cli conflict with docker-ce and docker-ce-cli
   sudo dnf remove -y moby-engine docker-cli docker-buildx moby-engine-nano \
-    moby-engine-rootless-extras moby-filesystem \
+    moby-engine-rootless-extras moby-filesystem podman-docker \
     docker docker-client docker-client-latest docker-common \
     docker-latest docker-latest-logrotate docker-logrotate \
     docker-selinux docker-engine-selinux docker-engine 2>/dev/null || true
@@ -33,12 +33,12 @@ install_docker() {
 
   # Install Docker CE packages
   sudo dnf install -y docker-ce docker-ce-cli containerd.io \
-    docker-buildx-plugin docker-compose-plugin
+    docker-buildx-plugin docker-compose-plugin iptables-nft
 
   # Verify GPG key fingerprint: 060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35
 
-  # Handle iptables-nft on Fedora 42+ (defensive — fresh Fedora 44 works without this)
-  if ! command -v iptables &>/dev/null || iptables --version 2>&1 | grep -q nf_tables; then
+  # Ensure iptables uses iptables-nft on Fedora
+  if command -v iptables-nft &>/dev/null; then
     if alternatives --list 2>/dev/null | grep -q iptables; then
       alternatives --set iptables /usr/bin/iptables-nft 2>/dev/null || true
     fi
@@ -132,4 +132,10 @@ install_podman_packages() {
     moby-engine-rootless-extras moby-filesystem 2>/dev/null || true
 
   sudo dnf install -y podman podman-docker podman-compose
+
+  # Ensure subid mapping tools retain cap_setuid/cap_setgid if filecaps were dropped
+  if command -v newuidmap &>/dev/null && ! getcap /usr/bin/newuidmap 2>/dev/null | grep -q cap_setuid; then
+    sudo setcap cap_setuid=ep /usr/bin/newuidmap 2>/dev/null || true
+    sudo setcap cap_setgid=ep /usr/bin/newgidmap 2>/dev/null || true
+  fi
 }

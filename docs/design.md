@@ -5,7 +5,7 @@ OpenSpec specs; where those specs said SHALL, this says "must".
 
 ## Scope
 
-- **Baseline:** the current Fedora Cloud release (Fedora 44). Other Fedora
+- **Baseline:** the current Fedora Cloud release (Fedora 45). Other Fedora
   systems are best-effort.
 - **Run-once bootstrap.** lolterm provisions a fresh, usually ephemeral
   environment and then gets out of the way. Afterwards the system is

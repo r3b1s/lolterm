@@ -1,7 +1,7 @@
 # lolterm on Qubes OS
 
 `install-on-qubes.sh` installs lolterm into a Qubes OS Fedora **TemplateVM**
-(e.g. a clone of `fedora-44-xfce`). AppVMs built on that template inherit it.
+(e.g. a clone of `fedora-45-xfce`). AppVMs built on that template inherit it.
 It is a separate entry point from `install.sh`, sharing the same `install/`
 modules.
 
@@ -74,7 +74,7 @@ Nothing runs in dom0, and no netvm needs to be attached to the template.
 ## Testing
 
 The `qubes` smoke flavor runs `install-on-qubes.sh` as root on the Fedora
-Cloud VM with `LOLTERM_QUBES_ALLOW_NON_QUBES=1`. It creates a `user` account
+test environment with `LOLTERM_QUBES_ALLOW_NON_QUBES=1`. It creates a `user` account
 first, then checks a freshly created user to simulate a new AppVM. It does not
 cover the updates proxy or a real template, so a final check belongs in a real
 Qubes template.

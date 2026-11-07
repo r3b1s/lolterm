@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Run lolterm smoke tests against the libvirt VM built by smoke/vm.sh.
+# Run lolterm smoke tests against the Incus test environment built by smoke/environment.sh.
 #
 #   smoke/run.sh <flavor>...   run one or more flavors (see smoke/tests/)
 #   smoke/run.sh all           run every flavor
 #   smoke/run.sh --keep <flavor>
-#                              leave the VM running afterwards for inspection
+#                              leave the instance running afterwards for inspection
 #
 # Every flavor starts from the "clean" snapshot, so flavors never see each
 # other's changes. The working tree (tracked plus untracked, non-ignored
-# files) is copied to the VM and run with LOLTERM_INSTALLER_DIR, so
+# files) is copied to the instance and run with LOLTERM_INSTALLER_DIR, so
 # uncommitted changes are tested without pushing.
 set -euo pipefail
 
@@ -28,7 +28,7 @@ usage() {
   done
 }
 
-# ---------- Assertions (run on the VM) ----------
+# ---------- Assertions (run on the instance) ----------
 fail() {
   echo "FAIL: $*" >&2
   exit 1
@@ -79,7 +79,7 @@ run_flavor() {
 
   # Each flavor file defines INSTALL_ARGS (array) and assert_flavor(). It may
   # also set INSTALL_SCRIPT, INSTALL_SUDO=true, INSTALL_ENV ("VAR=value ...")
-  # and define prepare_flavor() to run on the VM before the install.
+  # and define prepare_flavor() to run on the instance before the install.
   unset -f assert_flavor prepare_flavor
   INSTALL_ARGS=()
   INSTALL_SCRIPT="install.sh"
@@ -87,14 +87,13 @@ run_flavor() {
   INSTALL_ENV=""
   source "$file"
 
-  log "[$flavor] Reverting $VM to '$SNAPSHOT'..."
-  vsh destroy "$VM" >/dev/null 2>&1 || true
-  vsh snapshot-revert "$VM" "$SNAPSHOT"
-  vsh start "$VM" >/dev/null
-  wait_for_ssh
+  log "[$flavor] Reverting $INSTANCE to '$SNAPSHOT'..."
+  incus snapshot restore "$INSTANCE" "$SNAPSHOT"
+  instance_running || incus start "$INSTANCE"
+  wait_for_boot
 
-  log "[$flavor] Copying working tree to the VM..."
-  (cd "$REPO_ROOT" && git ls-files -z -co --exclude-standard | tar --null -T - -czf -) \
+  log "[$flavor] Copying working tree to the instance..."
+  (cd "$REPO_ROOT" && git ls-files -z -co --exclude-standard | tar --ignore-failed-read --null -T - -czf -) \
     | vm_ssh 'rm -rf ~/lolterm && mkdir ~/lolterm && tar -xzf - -C ~/lolterm'
 
   if declare -F prepare_flavor >/dev/null; then
@@ -115,8 +114,8 @@ run_flavor() {
   echo "PASS: $flavor"
 }
 
-need virsh ssh git tar
-domain_exists "$VM" || { echo "$VM not found. Build it first: smoke/vm.sh create" >&2; exit 1; }
+need incus git tar
+instance_exists || { echo "$INSTANCE not found. Build it first: smoke/environment.sh create" >&2; exit 1; }
 
 KEEP=false
 FLAVORS=()
@@ -138,8 +137,8 @@ for flavor in "${FLAVORS[@]}"; do
 done
 
 if $KEEP; then
-  echo "VM left running at $(vm_ip) (smoke/vm.sh ssh)."
+  echo "Instance left running (smoke/environment.sh shell)."
 else
-  shutdown_vm
+  shutdown_instance
 fi
 echo "All requested flavors passed: ${FLAVORS[*]}"

@@ -54,10 +54,9 @@ assert_flavor() {
   assert_path /root/.inputrc
   assert_file_contains /root/.bashrc "# ----- lolterm root shell config -----"
 
-  # Nix must also come back on its own after a reboot (enabled service, SELinux).
-  vm_ssh 'sudo systemctl reboot' || true
-  sleep 10
-  wait_for_ssh
+  # Nix must also come back on its own after a restart (enabled service, SELinux).
+  incus restart "$INSTANCE"
+  wait_for_boot
   assert_service nix-daemon.service active
   assert_user_cmd "[ \"\$(nix eval --expr '1 + 1')\" = 2 ]"
 }

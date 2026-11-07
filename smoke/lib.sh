@@ -1,29 +1,15 @@
 #!/usr/bin/env bash
-# Shared settings and helpers for the libvirt-based lolterm smoke harness.
-# Sourced by smoke/vm.sh and smoke/run.sh; not meant to be executed directly.
+# Shared settings and helpers for the Incus-based lolterm smoke harness.
+# Sourced by smoke/environment.sh and smoke/run.sh; not meant to be executed directly.
 
-LIBVIRT_URI="${LOLTERM_SMOKE_URI:-qemu:///system}"
-VM="${LOLTERM_SMOKE_VM:-lolterm-f44}"
-GOLDEN="${VM}-golden"
+FEDORA_RELEASE="${LOLTERM_SMOKE_FEDORA:-45}"
+INSTANCE="${LOLTERM_SMOKE_INSTANCE:-lolterm-f${FEDORA_RELEASE}}"
+IMAGE="${LOLTERM_SMOKE_IMAGE:-images:fedora/${FEDORA_RELEASE}}"
 SNAPSHOT="clean"
-POOL="${LOLTERM_SMOKE_POOL:-default}"
-# A NAT network whose DHCP and DNS the host firewall already allows. vm.sh
-# defines it (as $NET_PREFIX.0/24) only when no network of that name exists.
-NET="${LOLTERM_SMOKE_NET:-labbr0}"
-NET_PREFIX="${LOLTERM_SMOKE_NET_PREFIX:-10.40.40}"
+# Optional network bridge (attached during create if LOLTERM_SMOKE_NET is set).
+NET="${LOLTERM_SMOKE_NET:-}"
 VM_USER="fedora"
-VM_DISK_SIZE="${LOLTERM_SMOKE_DISK:-20G}"
-VM_MEMORY="${LOLTERM_SMOKE_MEMORY:-4096}"
-VM_VCPUS="${LOLTERM_SMOKE_VCPUS:-4}"
-FEDORA_RELEASE="${LOLTERM_SMOKE_FEDORA:-44}"
-FEDORA_IMAGES="https://dl.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_RELEASE}/Cloud/x86_64/images"
-STATE_DIR="${LOLTERM_SMOKE_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/lolterm-smoke}"
-SSH_KEY="$STATE_DIR/id_ed25519"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-vsh() {
-  virsh -c "$LIBVIRT_URI" "$@"
-}
 
 need() {
   local cmd
@@ -35,64 +21,60 @@ need() {
   done
 }
 
-domain_exists() {
-  vsh dominfo "$1" >/dev/null 2>&1
+instance_exists() {
+  incus info "$INSTANCE" >/dev/null 2>&1
 }
 
-domain_running() {
-  [[ "$(vsh domstate "$1" 2>/dev/null)" == "running" ]]
-}
-
-ensure_ssh_key() {
-  mkdir -p "$STATE_DIR"
-  chmod 700 "$STATE_DIR"
-  if [[ ! -f "$SSH_KEY" ]]; then
-    ssh-keygen -q -t ed25519 -N '' -C "lolterm-smoke" -f "$SSH_KEY"
-  fi
+instance_running() {
+  [[ "$(incus list "^${INSTANCE}\$" -c s --format csv 2>/dev/null)" == "RUNNING" ]]
 }
 
 vm_ip() {
-  vsh domifaddr "$VM" --source lease 2>/dev/null \
-    | awk -v p="$NET_PREFIX." '$4 ~ "^"p {split($4, a, "/"); print a[1]; exit}'
+  incus list "^${INSTANCE}\$" -c 4 --format csv 2>/dev/null | awk '{print $1}'
 }
 
-# The VM is disposable and reverted between runs, so its host key is never
-# pinned: it changes on every rebuild and would only produce mismatch errors.
+# Execute a command inside the instance as $VM_USER with their login environment.
+# Accepts piped stdin when commands expect standard input.
 vm_ssh() {
-  local ip
-  ip="$(vm_ip)"
-  [[ -n "$ip" ]] || { echo "No DHCP lease for $VM yet." >&2; return 1; }
-  ssh -i "$SSH_KEY" \
-    -o BatchMode=yes \
-    -o StrictHostKeyChecking=no \
-    -o UserKnownHostsFile=/dev/null \
-    -o LogLevel=ERROR \
-    -o ConnectTimeout=5 \
-    "$VM_USER@$ip" "$@"
+  incus exec "$INSTANCE" \
+    --user 1000 \
+    --group 1000 \
+    --cwd "/home/$VM_USER" \
+    --env HOME="/home/$VM_USER" \
+    --env USER="$VM_USER" \
+    --env XDG_RUNTIME_DIR="/run/user/1000" \
+    -- bash -lc "$*"
 }
 
-wait_for_ssh() {
+wait_for_boot() {
   local _
-  for _ in $(seq 1 120); do
-    if vm_ssh true 2>/dev/null; then
+  for _ in $(seq 1 60); do
+    if instance_running && incus exec "$INSTANCE" -- systemctl is-system-running 2>/dev/null | grep -qE "^(running|degraded)$"; then
       return 0
     fi
-    sleep 2
+    sleep 1
   done
-  echo "$VM did not become reachable over SSH." >&2
+  echo "$INSTANCE did not finish booting." >&2
   return 1
 }
 
-shutdown_vm() {
+wait_for_ssh() {
+  wait_for_boot
+}
+
+shutdown_instance() {
   local _
-  domain_running "$VM" || return 0
-  vsh shutdown "$VM" >/dev/null
-  for _ in $(seq 1 90); do
-    domain_running "$VM" || return 0
-    sleep 2
+  instance_running || return 0
+  incus stop "$INSTANCE" >/dev/null 2>&1 || true
+  for _ in $(seq 1 30); do
+    instance_running || return 0
+    sleep 1
   done
-  echo "$VM did not shut down cleanly; forcing it off." >&2
-  vsh destroy "$VM" >/dev/null
+  incus stop "$INSTANCE" --force >/dev/null 2>&1 || true
+}
+
+shutdown_vm() {
+  shutdown_instance
 }
 
 log() {

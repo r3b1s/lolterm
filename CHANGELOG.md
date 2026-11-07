@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Upgraded the default baseline and documentation across the repository to Fedora 45.
+- Replaced the libvirt VM smoke harness with a lightweight Incus system-container harness (`smoke/environment.sh` and `smoke/lib.sh`), snapshotting a clean, updated `images:fedora/45` instance and running smoke flavors against it with zero VM emulation overhead.
+
+### Fixed
+- Fixed Docker CE installation on systems with `podman-docker` present by removing conflicting `podman-docker` packages prior to installing `docker-ce`.
+- Fixed Docker CE service startup on Fedora 45 by explicitly installing `iptables-nft` and setting the alternatives default.
+- Added defensive capability preservation for `newuidmap`/`newgidmap` when missing in container images.
+- Hardened `mise-helpers/mise-lazydocker.sh` to fall back to `systemctl --user --machine="$(id -un)@.host"` when headless.
+
 ### Removed
 - `act-cli` and the `goncalossilva/act` COPR from every installer. act needs a container engine, so on systems without one it pulled in `moby-engine`, which `--podman`/`--docker` then removed together with act.
 - `--kali-container` and the whole Kali container module, its allowlists, `lolterm-kali-rebuild`, and `lolterm-kali-update`.
